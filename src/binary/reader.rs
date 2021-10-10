@@ -81,16 +81,6 @@ impl Reader {
         assert_eq!(self.read_lua_number(), chunk::LUAC_NUM, "float format mismatch!");
     }
 
-    fn read_vec<F, T>(&mut self, func: F) -> Vec<T> 
-    where F: Fn(&mut Reader) -> T {
-        let n = self.read_u32() as usize;
-        let mut vec = Vec::with_capacity(n);
-        for _ in 0..n {
-            vec.push(func(self));
-        }
-        vec
-    }
-
     pub fn read_proto(&mut self) -> chunk::Prototype {
         self._read_proto(None)
     }
@@ -104,31 +94,25 @@ impl Reader {
             num_params: self.read_byte(),
             is_vararg: self.read_byte(),
             max_stack_size: self.read_byte(),
-            code: self.read_code(),
-            constants: self.read_constants(),
-            upvalues: self.read_upvalues(),
+            code: self.read_vec(|r| r.read_u32()),
+            constants: self.read_vec(|r| r.read_constant()),
+            upvalues: self.read_vec(|r| r.read_upvalue()),
             protos: self.read_vec(|r| r._read_proto(source.clone())),
-            line_info: self.read_line_info(),
-            loc_vars: self.read_local_vars(),
-            upvalue_names: self.read_upvalue_names(),
+            line_info: self.read_vec(|r| r.read_u32()),
+            loc_vars: self.read_vec(|r| r.read_loc_var()),
+            upvalue_names: self.read_vec(|r| r.read_string()),
         };
     }
 
-    fn read_code(&mut self) -> Vec<u32> {
-        let mut code = vec![0; self.read_u32() as usize];
-        for i in code.iter_mut() {
-            *i = self.read_u32();
+    // A template for read vector
+    fn read_vec<F, T>(&mut self, func: F) -> Vec<T> 
+    where F: Fn(&mut Reader) -> T {
+        let n = self.read_u32() as usize;
+        let mut vec = Vec::with_capacity(n);
+        for _ in 0..n {
+            vec.push(func(self));
         }
-        code
-    }
-
-    fn read_constants(&mut self) -> Vec<chunk::Constant> {
-        let len = self.read_u32() as usize;
-        let mut constants = Vec::with_capacity(len);
-        for _ in 0..len {
-            constants.push(self.read_constant());
-        }
-        constants
+        vec
     }
 
     fn read_constant(&mut self) -> chunk::Constant {
@@ -144,45 +128,18 @@ impl Reader {
         }
     }
 
-    fn read_upvalues(&mut self) -> Vec<chunk::Upvalue> {
-        let len = self.read_u32() as usize;
-        let mut upvalues = Vec::with_capacity(len);
-        for _ in 0..len {
-            upvalues.push(chunk::Upvalue {
-                instack: self.read_byte(),
-                idx: self.read_byte(),
-            });
+    fn read_upvalue(&mut self) -> chunk::Upvalue {
+        chunk::Upvalue {
+            instack: self.read_byte(),
+            idx: self.read_byte(),
         }
-        upvalues
     }
 
-    fn read_line_info(&mut self) -> Vec<u32> {
-        let mut line_info = vec![0; self.read_u32() as usize];
-        for e in line_info.iter_mut() {
-            *e = self.read_u32();
+    fn read_loc_var(&mut self) -> chunk::LocVar {
+        chunk::LocVar {
+            var_name: self.read_string(),
+            start_pc: self.read_u32(),
+            end_pc: self.read_u32(),
         }
-        line_info
-    }
-
-    fn read_local_vars(&mut self) -> Vec<chunk::LocVar> {
-        let len = self.read_u32() as usize;
-        let mut loc_vars = Vec::with_capacity(len);
-        for _ in 0..len {
-            loc_vars.push(chunk::LocVar {
-                var_name: self.read_string(),
-                start_pc: self.read_u32(),
-                end_pc: self.read_u32(),
-            });
-        }
-        loc_vars
-    }
-
-    fn read_upvalue_names(&mut self) -> Vec<String> {
-        let len = self.read_u32() as usize;
-        let mut names = Vec::with_capacity(len);
-        for _ in 0..len {
-            names.push(self.read_string());
-        }
-        names
     }
 }
