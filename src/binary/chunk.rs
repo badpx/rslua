@@ -40,7 +40,7 @@ pub struct Header {
 }
 
 pub struct Prototype {
-    pub source: String,
+    pub source: Option<String>,
     pub line_defined: u32,
     pub last_line_defined: u32,
     pub num_params: u8,

@@ -1,5 +1,3 @@
-use std::str;
-
 use crate::binary::chunk;
 
 pub struct Reader {
@@ -32,31 +30,13 @@ impl Reader {
         (a1 << 32) | a0
     }
 
-    fn read_lua_integer(&mut self) -> i64 {
+    pub fn read_lua_integer(&mut self) -> i64 {
         self.read_u64() as i64
     }
 
-    fn read_lua_number(&mut self) -> f64 {
+    pub fn read_lua_number(&mut self) -> f64 {
         use std::f64;
         f64::from_bits(self.read_u64())
-    }
-
-    pub fn read_string(&mut self) -> String {
-        let mut size: usize = self.read_byte() as usize;
-
-        if size == 0 {
-            // NULL
-            return String::new();
-        }
-        if size == 0xFF {
-            // Long string
-            size = self.read_u64() as usize;
-        }
-        let bytes = self.read_bytes(size - 1);
-        match String::from_utf8(bytes) {
-            Ok(s) => String::from(s),
-            Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-        }
     }
 
     pub fn read_bytes(&mut self, n: usize) -> Vec<u8> {
@@ -65,6 +45,26 @@ impl Reader {
             vec.push(self.read_byte());
         }
         vec
+    }
+
+    pub fn read_string(&mut self) -> String {
+        self._read_string().unwrap_or_else(|| String::new())
+    }
+
+    fn _read_string(&mut self) -> Option<String> {
+        let mut size: usize = self.read_byte() as usize;
+
+        if size == 0 {
+            // NULL
+            return None;
+        }
+        if size == 0xFF {
+            // Long string
+            size = self.read_u64() as usize;
+        }
+        let bytes = self.read_bytes(size - 1);
+        let string = String::from_utf8(bytes);
+        string.ok()
     }
 
     pub fn check_header(&mut self) {
@@ -81,13 +81,22 @@ impl Reader {
         assert_eq!(self.read_lua_number(), chunk::LUAC_NUM, "float format mismatch!");
     }
 
-    pub fn read_proto(&mut self, parent_source: &String) -> chunk::Prototype {
-        let src = self.read_string();
-        let source = if src == "" {
-            parent_source.clone()
-        } else {
-            src
-        };
+    fn read_vec<F, T>(&mut self, func: F) -> Vec<T> 
+    where F: Fn(&mut Reader) -> T {
+        let n = self.read_u32() as usize;
+        let mut vec = Vec::with_capacity(n);
+        for _ in 0..n {
+            vec.push(func(self));
+        }
+        vec
+    }
+
+    pub fn read_proto(&mut self) -> chunk::Prototype {
+        self._read_proto(None)
+    }
+
+    fn _read_proto(&mut self, parent_source: Option<String>) -> chunk::Prototype {
+        let source = self._read_string().or(parent_source);
         return chunk::Prototype {
             source: source.clone(),
             line_defined: self.read_u32(),
@@ -98,7 +107,7 @@ impl Reader {
             code: self.read_code(),
             constants: self.read_constants(),
             upvalues: self.read_upvalues(),
-            protos: self.read_protos(&source),
+            protos: self.read_vec(|r| r._read_proto(source.clone())),
             line_info: self.read_line_info(),
             loc_vars: self.read_local_vars(),
             upvalue_names: self.read_upvalue_names(),
@@ -145,15 +154,6 @@ impl Reader {
             });
         }
         upvalues
-    }
-
-    fn read_protos(&mut self, parent_source: &String) -> Vec<chunk::Prototype> {
-        let len = self.read_u32() as usize;
-        let mut protos = Vec::with_capacity(len);
-        for _ in 0..len {
-            protos.push(self.read_proto(&parent_source));
-        }
-        protos
     }
 
     fn read_line_info(&mut self) -> Vec<u32> {

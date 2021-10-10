@@ -40,7 +40,7 @@ fn print_header(proto: &binary::chunk::Prototype) {
     println!(
         "\n{} <{}:{}, {}> ({} instructions)",
         func_type,
-        proto.source,
+        proto.source.as_ref().map(|x| x.as_str()).unwrap_or(""),
         proto.line_defined,
         proto.last_line_defined,
         proto.code.len()
