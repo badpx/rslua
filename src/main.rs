@@ -4,6 +4,9 @@ use std::io;
 use std::io::prelude::*;
 
 mod binary;
+mod vm;
+use crate::vm::instruction::Instruction;
+use crate::vm::opcodes::*;
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -67,8 +70,51 @@ fn print_code(proto: &binary::chunk::Prototype) {
         } else {
             "-".to_string()
         };
-        println!("\t{}\t[{}]\t{:#010x}", pc + 1, line, c);
+        print!("\t{}\t[{}]\t{} \t", pc + 1, line, (*c).opname());
+        print_oprands(*c);
+        println!("");
     }
+}
+
+fn print_oprands(i: u32) {
+    match i.opmode() {
+        OP_MODE_ABC => {
+            let (a, b, c) = i.abc();
+            print!("{}", a);
+            if i.b_mode() != OP_ARG_N {
+                if b > 0xFF {
+                    print!(" {}", -1 - b & 0xFF);
+                } else {
+                    print!(" {}", b);
+                }
+            }
+            if i.c_mode() != OP_ARG_N {
+                if c > 0xFF {
+                    print!(" {}", -1 - c & 0xFF);
+                } else {
+                    print!(" {}", c);
+                }
+            }
+        },
+        OP_MODE_ABX => {
+            let (a, bx) = i.a_bx();
+            print!(" {}", a);
+            if i.b_mode() == OP_ARG_K {
+                print!(" {}", -1 - bx);
+            } else if i.b_mode() == OP_ARG_U {
+                print!(" {}", bx);
+            }
+        },
+        OP_MODE_ASBX => {
+            let (a, sbx) = i.a_sbx();
+            print!("{} {}", a, sbx);
+        },
+        OP_MODE_AX => {
+            let ax = i.ax();
+            print!("{}", -1 - ax);
+        },
+        _ => unreachable!(),
+    };
 }
 
 fn print_detail(proto: &binary::chunk::Prototype) {
