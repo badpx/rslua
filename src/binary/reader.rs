@@ -105,8 +105,10 @@ impl Reader {
     }
 
     // A template for read vector
-    fn read_vec<F, T>(&mut self, func: F) -> Vec<T> 
-    where F: Fn(&mut Reader) -> T {
+    fn read_vec<F, T>(&mut self, func: F) -> Vec<T>
+    where
+        F: Fn(&mut Reader) -> T,
+    {
         let n = self.read_u32() as usize;
         let mut vec = Vec::with_capacity(n);
         for _ in 0..n {
@@ -121,9 +123,7 @@ impl Reader {
             chunk::TAG_BOOLEAN => chunk::Constant::Boolean(self.read_byte() != 0),
             chunk::TAG_INTEGER => chunk::Constant::Integer(self.read_lua_integer()),
             chunk::TAG_NUMBER => chunk::Constant::Number(self.read_lua_number()),
-            chunk::TAG_SHORT_STR | chunk::TAG_LONG_STR => {
-                chunk::Constant::String(self.read_string())
-            }
+            chunk::TAG_SHORT_STR | chunk::TAG_LONG_STR => chunk::Constant::String(self.read_string()),
             _ => panic!("Corrupted!"),
         }
     }

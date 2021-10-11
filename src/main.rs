@@ -8,6 +8,11 @@ mod vm;
 use crate::vm::instruction::Instruction;
 use crate::vm::opcodes::*;
 
+mod api;
+mod state;
+use crate::api::{consts::*, LuaAPI};
+use crate::state::LuaState;
+
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
@@ -21,6 +26,7 @@ fn main() -> io::Result<()> {
         println!("Please input file name.");
     }
 
+    let _ = LuaState::new();
     Ok(())
 }
 
@@ -34,11 +40,7 @@ fn list(proto: &binary::chunk::Prototype) {
 }
 
 fn print_header(proto: &binary::chunk::Prototype) {
-    let func_type = if proto.line_defined > 0 {
-        "function"
-    } else {
-        "main"
-    };
+    let func_type = if proto.line_defined > 0 { "function" } else { "main" };
     let vararg_flag = if proto.is_vararg > 0 { "+" } else { "" };
     println!(
         "\n{} <{}:{}, {}> ({} instructions)",
@@ -83,19 +85,19 @@ fn print_oprands(i: u32) {
             print!("{}", a);
             if i.b_mode() != OP_ARG_N {
                 if b > 0xFF {
-                    print!(" {}", -1 - b & 0xFF);
+                    print!(" {}", -1 - (b & 0xFF));
                 } else {
                     print!(" {}", b);
                 }
             }
             if i.c_mode() != OP_ARG_N {
                 if c > 0xFF {
-                    print!(" {}", -1 - c & 0xFF);
+                    print!(" {}", -1 - (c & 0xFF));
                 } else {
                     print!(" {}", c);
                 }
             }
-        },
+        }
         OP_MODE_ABX => {
             let (a, bx) = i.a_bx();
             print!(" {}", a);
@@ -104,15 +106,15 @@ fn print_oprands(i: u32) {
             } else if i.b_mode() == OP_ARG_U {
                 print!(" {}", bx);
             }
-        },
+        }
         OP_MODE_ASBX => {
             let (a, sbx) = i.a_sbx();
             print!("{} {}", a, sbx);
-        },
+        }
         OP_MODE_AX => {
             let ax = i.ax();
             print!("{}", -1 - ax);
-        },
+        }
         _ => unreachable!(),
     };
 }
@@ -155,12 +157,6 @@ fn print_detail(proto: &binary::chunk::Prototype) {
 
     println!("upvalues ({}):", proto.upvalues.len());
     for (i, upval) in proto.upvalues.iter().enumerate() {
-        println!(
-            "\t{}\t{}\t{}\t{}",
-            i,
-            upvalue_name(proto, i),
-            upval.instack,
-            upval.idx
-        );
+        println!("\t{}\t{}\t{}\t{}", i, upvalue_name(proto, i), upval.instack, upval.idx);
     }
 }
