@@ -10,36 +10,10 @@ use crate::vm::opcodes::*;
 
 mod api;
 mod state;
+mod number;
 use crate::api::{consts::*, LuaAPI};
 use crate::state::LuaState;
 
-fn main() {
-    let mut ls = LuaState::new();
-    ls.push_boolean(true); print_stack(&ls);
-    ls.push_integer(10); print_stack(&ls);
-    ls.push_nil(); print_stack(&ls);
-    ls.push_string("hello".to_string()); print_stack(&ls);
-    ls.push_value(-4); print_stack(&ls);
-    ls.replace(3); print_stack(&ls);
-    ls.set_top(6); print_stack(&ls);
-    ls.remove(-3); print_stack(&ls);
-    ls.set_top(-5); print_stack(&ls);
-}
-
-fn print_stack(ls: &LuaState) {
-    let top = ls.get_top();
-    for i in 1..=top {
-        match ls.type_id(i) {
-            LUA_TBOOLEAN => print!("[{}]", ls.to_boolean(i)),
-            LUA_TNUMBER => print!("[{}]", ls.to_number(i)),
-            LUA_TSTRING => print!("[\"{}\"]", ls.to_string(i)),
-            t => print!("[{}]", ls.type_name(t)),
-        }
-    }
-    println!("");
-}
-
-/*
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
@@ -186,4 +160,3 @@ fn print_detail(proto: &binary::chunk::Prototype) {
         println!("\t{}\t{}\t{}\t{}", i, upvalue_name(proto, i), upval.instack, upval.idx);
     }
 }
-*/

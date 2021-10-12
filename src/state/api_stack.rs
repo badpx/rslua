@@ -126,6 +126,7 @@ impl LuaAPI for LuaState {
         self.stack.reverse(m as usize + 1, t as usize);
         self.stack.reverse(p as usize, t as usize);
     }
+
     fn set_top(&mut self, idx: isize) {
         let new_top = self.stack.abs_index(idx);
         if new_top < 0 {
@@ -212,10 +213,7 @@ impl LuaAPI for LuaState {
     }
 
     fn to_integerx(&self, idx: isize) -> std::option::Option<i64> {
-        match self.stack.get(idx) {
-            LuaValue::Integer(i) => Some(i),
-            _ => None,
-        }
+        self.stack.get(idx).to_integer()
     }
 
     fn to_number(&self, idx: isize) -> f64 {
@@ -223,15 +221,13 @@ impl LuaAPI for LuaState {
     }
 
     fn to_numberx(&self, idx: isize) -> std::option::Option<f64> {
-        match self.stack.get(idx) {
-            LuaValue::Number(n) => Some(n),
-            LuaValue::Number(i) => Some(i as f64),
-            _ => None,
-        }
+        self.stack.get(idx).to_number()
     }
+
     fn to_string(&self, idx: isize) -> std::string::String {
         self.to_stringx(idx).unwrap_or("".to_string())
     }
+    
     fn to_stringx(&self, idx: isize) -> std::option::Option<std::string::String> {
         match self.stack.get(idx) {
             LuaValue::Str(s) => Some(s),
@@ -256,6 +252,44 @@ impl LuaAPI for LuaState {
     }
     fn push_string(&mut self, s: std::string::String) {
         self.stack.push(LuaValue::Str(s));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stack() {
+        let mut ls = LuaState::new();
+        assert_eq!(*ls.stack._raw_data(), Vec::<LuaValue>::new());
+
+        ls.push_boolean(true);
+        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true)]);
+
+        ls.push_integer(10);
+        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10)]);
+
+        ls.push_nil(); 
+        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Nil]);
+
+        ls.push_string("hello".to_string()); 
+        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Nil, LuaValue::Str("hello".to_string())]);
+
+        ls.push_value(-4); 
+        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Nil, LuaValue::Str("hello".to_string()), LuaValue::Boolean(true)]);
+
+        ls.replace(3); 
+        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Boolean(true), LuaValue::Str("hello".to_string())]);
+
+        ls.set_top(6); 
+        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Boolean(true), LuaValue::Str("hello".to_string()), LuaValue::Nil, LuaValue::Nil]);
+
+        ls.remove(-3); 
+        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Boolean(true), LuaValue::Nil, LuaValue::Nil]);
+
+        ls.set_top(-5); 
+        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true)]);
     }
 
 }

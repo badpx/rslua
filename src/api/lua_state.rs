@@ -1,5 +1,8 @@
 use super::consts::LuaType;
 
+pub type ArithOp = i8;
+pub type CompareOp = i8;
+
 pub trait LuaState {
     /* basic stack manipulation */
     fn get_top(&self) -> isize;
@@ -39,4 +42,10 @@ pub trait LuaState {
     fn push_integer(&mut self, n: i64);
     fn push_number(&mut self, n: f64);
     fn push_string(&mut self, s: String);
+    /* comparison and arithmetic functions */
+    // fn arith(op: ArithOp);
+    // fn compare(idx1: isize, idx2: isize, op: CompareOp) -> bool;
+    /* miscellaneous functions */
+    // fn len(idx: isize);
+    // fn concat(n: isize);
 }

@@ -13,4 +13,5 @@ impl LuaState {
             stack: LuaStack::new(20),
         }
     }
+
 }

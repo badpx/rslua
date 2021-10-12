@@ -69,4 +69,8 @@ impl LuaStack {
             to -= 1;
         }
     }
+
+    pub fn _raw_data(&self) -> &Vec<LuaValue> {
+        &self.slots 
+    }
 }
