@@ -7,6 +7,6 @@ mod api_compare;
 
 pub use self::lua_state::LuaState;
 
-pub fn new_lua_state() -> LuaState {
+/*pub fn new_lua_state() -> LuaState {
     LuaState::new()
-}
+}*/

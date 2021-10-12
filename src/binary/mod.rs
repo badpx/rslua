@@ -1,5 +1,5 @@
 pub mod chunk;
-mod reader;
+pub mod reader;
 
 pub fn undump(data: Vec<u8>) -> chunk::Prototype {
     let mut reader = reader::Reader::new(data);

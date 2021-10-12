@@ -362,11 +362,14 @@ impl LuaAPI for LuaState {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::binary::reader::tests::LUA_HELLO_WORLD;
+use super::*;
+    use crate::binary::undump;
 
     #[test]
     fn stack() {
-        let mut ls = LuaState::new();
+        let proto = undump(LUA_HELLO_WORLD.to_vec());
+        let mut ls = LuaState::new(proto.max_stack_size as usize, proto);
         assert_eq!(*ls.stack._raw_data(), Vec::<LuaValue>::new());
         ls.push_boolean(true);
         assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true)]);
@@ -390,7 +393,8 @@ mod tests {
 
     #[test]
     fn arith() {
-        let mut ls = LuaState::new();
+        let proto = undump(LUA_HELLO_WORLD.to_vec());
+        let mut ls = LuaState::new(proto.max_stack_size as usize, proto);
         ls.push_integer(1);
         assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1)]);
         ls.push_string("2.0".to_string());
