@@ -1,3 +1,5 @@
+use super::consts::LuaType;
+
 pub trait LuaState {
     /* basic stack manipulation */
     fn get_top(&self) -> isize;
@@ -12,8 +14,8 @@ pub trait LuaState {
     fn rotate(&mut self, idx: isize, n: isize);
     fn set_top(&mut self, idx: isize);
     /* access functions (stack -> rust) */
-    fn type_name(&self, tp: i8) -> &str; // TODO
-    fn type_id(&self, idx: isize) -> i8; // `type` is a keyword
+    fn type_name(&self, tp: LuaType) -> &str; // TODO
+    fn type_id(&self, idx: isize) -> LuaType; // `type` is a keyword
     fn is_none(&self, idx: isize) -> bool;
     fn is_nil(&self, idx: isize) -> bool;
     fn is_none_or_nil(&self, idx: isize) -> bool;

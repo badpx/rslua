@@ -20,16 +20,10 @@ impl LuaStack {
     }
 
     pub fn push(&mut self, val: LuaValue) {
-        if self.top() as usize == self.slots.len() {
-            panic!("Stack overflow!");   // TODO: Don't make panic!
-        }
         self.slots.push(val);
     }
 
     pub fn pop(&mut self) -> LuaValue {
-        if self.top() < 1 {
-            panic!("Stack underflow!");   // TODO: Don't make panic! 
-        }
         self.slots.pop().unwrap()
     }
 
@@ -63,11 +57,12 @@ impl LuaStack {
         let (valid, abs_idx) = self._is_valid(idx);
         if valid {
             self.slots[abs_idx as usize - 1] = val;
+        } else {
+            panic!("Invalid index!");
         }
-        panic!("Invalid index!");
     }
 
-    pub fn reverse(&mut self, from: usize, to: usize) {
+    pub fn reverse(&mut self, mut from: usize, mut to: usize) {
         while from < to {
             self.slots.swap(from, to);
             from += 1;

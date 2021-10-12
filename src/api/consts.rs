@@ -1,4 +1,4 @@
-
+pub type LuaType = i8;
 /* basic types */
 pub const LUA_TNONE: i8 = -1;
 pub const LUA_TNIL: i8 = 0;

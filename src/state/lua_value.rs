@@ -9,8 +9,6 @@ pub enum LuaValue {
     Str(String),
 }
 
-type LuaType = i8;
-
 impl LuaValue {
     pub fn type_id(&self) -> LuaType {
         match self {
@@ -20,4 +18,13 @@ impl LuaValue {
             LuaValue::Str(_) => LUA_TSTRING,
         }
     }
+
+    pub fn to_boolean(&self) -> bool {
+        match self {
+            LuaValue::Nil => false,
+            LuaValue::Boolean(b) => *b,
+            _ => true,
+        }
+    }
+
 }
