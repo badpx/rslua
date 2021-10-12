@@ -1,4 +1,4 @@
-fn ifloor_div(a: i64, b: i64) -> i64 {
+pub fn ifloor_div(a: i64, b: i64) -> i64 {
     if a > 0 && b > 0 || a < 0 && b < 0 || a % b == 0 {
         a / b
     } else {
@@ -6,15 +6,15 @@ fn ifloor_div(a: i64, b: i64) -> i64 {
     }
 }
 
-fn ffloor_div(a: f64, b: f64) -> f64 {
+pub fn ffloor_div(a: f64, b: f64) -> f64 {
     (a / b).floor()
 }
 
-fn imod(a: i64, b: i64) -> i64 {
+pub fn imod(a: i64, b: i64) -> i64 {
     a - ifloor_div(a, b) * b
 }
 
-fn fmod(a: f64, b: f64) -> f64 {
+pub fn fmod(a: f64, b: f64) -> f64 {
     if a > 0.0 && is_positive_infinite(b) || a < 0.0 && is_negative_infinite(b) {
         a
     } else if a > 0.0 && is_negative_infinite(b) || a < 0.0 && is_positive_infinite(b) {
@@ -32,7 +32,7 @@ fn is_negative_infinite(n: f64) -> bool {
     n.is_infinite() && n.is_sign_negative()
 }
 
-fn shift_left(a: i64, n: i64) -> i64 {
+pub fn shift_left(a: i64, n: i64) -> i64 {
     if n >= 64 {
         0
     } else if n >= 0 {
@@ -42,7 +42,7 @@ fn shift_left(a: i64, n: i64) -> i64 {
     }
 }
 
-fn shift_right(a: i64, n: i64) -> i64 {
+pub fn shift_right(a: i64, n: i64) -> i64 {
     if n >= 64 {
         0
     } else if n >= 0 {

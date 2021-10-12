@@ -2,6 +2,8 @@ use crate::api::LuaAPI;
 use super::lua_state::LuaState;
 use crate::api::consts::*;
 use super::lua_value::LuaValue;
+use super::api_arith;
+use super::api_compare::compare;
 
 impl LuaAPI for LuaState {
     /* =========================== Basic Methods =========================== */
@@ -253,6 +255,109 @@ impl LuaAPI for LuaState {
     fn push_string(&mut self, s: std::string::String) {
         self.stack.push(LuaValue::Str(s));
     }
+
+    /* ================= comparison and arithmetic methods ================= */
+    /*            Arith
+        (Binary opration, such as +)
+        +-------+       +-------+
+        |       |       |       |
+        +-------+       +-------+
+        |   c   |---+   |       |
+        +-------+   |   +-------+
+        |   b   |---+-->| b + c |
+        +-------+       +-------+
+        |   a   |       |   a   |
+        +-------+       +-------+
+
+        (Unary opration, such as ~)
+        +-------+       +-------+
+        |       |       |       |
+        +-------+       +-------+
+        |   c   |------>|   ~c  |
+        +-------+       +-------+
+        |   b   |       |   b   |
+        +-------+       +-------+
+        |   a   |       |   a   |
+        +-------+       +-------+
+    */
+    fn arith(&mut self, op: ArithOp) {
+        if op != LUA_OPUNM && op != LUA_OPBNOT {
+            let b = self.stack.pop();
+            let a = self.stack.pop();
+            if let Some(ret) = api_arith::_arith(&a, &b, op) {
+                self.stack.push(ret);
+                return;
+            }
+        } else {
+            let a = self.stack.pop();
+            if let Some(ret) = api_arith::_arith(&a, &a, op) {
+                self.stack.push(ret);
+                return;
+            }
+        }
+        panic!("Arithmetic error!");
+    }
+
+    fn compare(&self, idx1: isize, idx2: isize, op: CompareOp) -> bool {
+        let a = self.stack.get(idx1);
+        let b = self.stack.get(idx2);
+        match op {
+            LUA_OPEQ|LUA_OPLT|LUA_OPLE => compare(&a, &b, op),
+            _ => panic!("Invalid compare operation"),
+        }
+    }
+
+    /*
+                  len(2)
+        +-------+       +-------+
+        |       |   +-->|   #b  |
+        +-------+   |   +-------+
+        |   c   |   |   |   c   |
+        +-------+   |   +-------+
+        |   b   |---+   |   b   |
+        +-------+       +-------+
+        |   a   |       |   a   |
+        +-------+       +-------+
+    */
+    fn len(&mut self, idx: isize) {
+        let val = self.stack.get(idx);
+        if let LuaValue::Str(s) = val {
+            self.stack.push(LuaValue::Integer(s.len() as i64));
+        } else {
+            panic!("TODO: need support more type!");
+        }
+    }
+
+    /*
+                concat(2)
+        +-------+       +-------+
+        |       |       |       |
+        +-------+       +-------+
+        |   c   |---+   |       |
+        +-------+   |   +-------+
+        |   b   |---+-->|  b..c |
+        +-------+       +-------+
+        |   a   |       |   a   |
+        +-------+       +-------+
+    */
+    fn concat(&mut self, n: isize) {
+        if n == 0 {
+            self.stack.push(LuaValue::Str("".to_string()));
+        } else if n > 1 {
+            for _ in 1..n {
+                if self.is_string(-1) && self.is_string(-2) {
+                    let s2 = self.to_string(-1);
+                    let s1 = self.to_string(-2);
+                    self.stack.pop();
+                    self.stack.pop();
+                    self.stack.push(LuaValue::Str(s1 + &s2));
+                } else {
+                    panic!("Concatenation error!");
+                }
+            }
+        }
+        // n == 1, do nothing.
+    }
 }
 
 #[cfg(test)]
@@ -263,33 +368,45 @@ mod tests {
     fn stack() {
         let mut ls = LuaState::new();
         assert_eq!(*ls.stack._raw_data(), Vec::<LuaValue>::new());
-
         ls.push_boolean(true);
         assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true)]);
-
         ls.push_integer(10);
         assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10)]);
-
         ls.push_nil(); 
         assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Nil]);
-
         ls.push_string("hello".to_string()); 
         assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Nil, LuaValue::Str("hello".to_string())]);
-
         ls.push_value(-4); 
         assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Nil, LuaValue::Str("hello".to_string()), LuaValue::Boolean(true)]);
-
         ls.replace(3); 
         assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Boolean(true), LuaValue::Str("hello".to_string())]);
-
         ls.set_top(6); 
         assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Boolean(true), LuaValue::Str("hello".to_string()), LuaValue::Nil, LuaValue::Nil]);
-
         ls.remove(-3); 
         assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Boolean(true), LuaValue::Nil, LuaValue::Nil]);
-
         ls.set_top(-5); 
         assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true)]);
     }
 
+    #[test]
+    fn arith() {
+        let mut ls = LuaState::new();
+        ls.push_integer(1);
+        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1)]);
+        ls.push_string("2.0".to_string());
+        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string())]);
+        ls.push_string("3.0".to_string());
+        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string()), LuaValue::Str("3.0".to_string())]);
+        ls.push_number(4.0);
+        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string()), LuaValue::Str("3.0".to_string()), LuaValue::Number(4.0)]);
+
+        ls.arith(LUA_OPADD);
+        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string()), LuaValue::Number(7.0)]);
+        ls.arith(LUA_OPBNOT);
+        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string()), LuaValue::Integer(-8)]);
+        ls.len(2);
+        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string()), LuaValue::Integer(-8), LuaValue::Integer(3)]);
+        ls.concat(3);
+        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0-83".to_string())]);
+    }
 }

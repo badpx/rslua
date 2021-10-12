@@ -1,7 +1,4 @@
-use super::consts::LuaType;
-
-pub type ArithOp = i8;
-pub type CompareOp = i8;
+use super::consts::{LuaType, ArithOp, CompareOp};
 
 pub trait LuaState {
     /* basic stack manipulation */
@@ -16,7 +13,7 @@ pub trait LuaState {
     fn remove(&mut self, idx: isize);
     fn rotate(&mut self, idx: isize, n: isize);
     fn set_top(&mut self, idx: isize);
-    /* access functions (stack -> rust) */
+    /* access methods (stack -> rust) */
     fn type_name(&self, tp: LuaType) -> &str; // TODO
     fn type_id(&self, idx: isize) -> LuaType; // `type` is a keyword
     fn is_none(&self, idx: isize) -> bool;
@@ -36,16 +33,16 @@ pub trait LuaState {
     fn to_numberx(&self, idx: isize) -> Option<f64>;
     fn to_string(&self, idx: isize) -> String;
     fn to_stringx(&self, idx: isize) -> Option<String>;
-    /* push functions (rust -> stack) */
+    /* push methods (rust -> stack) */
     fn push_nil(&mut self);
     fn push_boolean(&mut self, b: bool);
     fn push_integer(&mut self, n: i64);
     fn push_number(&mut self, n: f64);
     fn push_string(&mut self, s: String);
-    /* comparison and arithmetic functions */
-    // fn arith(op: ArithOp);
-    // fn compare(idx1: isize, idx2: isize, op: CompareOp) -> bool;
-    /* miscellaneous functions */
-    // fn len(idx: isize);
-    // fn concat(n: isize);
+    /* comparison and arithmetic methods */
+    fn arith(&mut self, op: ArithOp);
+    fn compare(&self, idx1: isize, idx2: isize, op: CompareOp) -> bool;
+    /* miscellaneous methods */
+    fn len(&mut self, idx: isize);
+    fn concat(&mut self, n: isize);
 }
