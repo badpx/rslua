@@ -1,4 +1,10 @@
-use super::opcodes::OPCODES;
+use super::inst_for::*;
+use super::inst_load::*;
+use super::inst_misc::*;
+use super::inst_ops::*;
+use super::opcodes::*;
+use crate::api::LuaVM;
+
 
 const MAXARG_BX: isize = (1 << 18) - 1; // 262143
 const MAXARG_SBX: isize = MAXARG_BX >> 1; // 131071
@@ -26,6 +32,7 @@ pub trait Instruction {
     fn a_bx(self) -> (isize, isize);
     fn a_sbx(self) -> (isize, isize);
     fn ax(self) -> isize;
+    fn execute(self, vm: &mut LuaVM);
 }
 
 impl Instruction for u32 {
@@ -78,5 +85,93 @@ impl Instruction for u32 {
 
     fn ax(self) -> isize {
         (self >> 6) as isize
+    }
+
+    fn execute(self, vm: &mut LuaVM) {
+        match self.opcode() {
+            OP_MOVE => move_(self, vm),
+            OP_LOADK => load_k(self, vm),
+            OP_LOADKX => load_kx(self, vm),
+            OP_LOADBOOL => load_bool(self, vm),
+            OP_LOADNIL => load_nil(self, vm),
+            // OP_GETUPVAL => (),
+            // OP_GETTABUP => (),
+            // OP_GETTABLE => (),
+            // OP_SETTABUP => (),
+            // OP_SETUPVAL => (),
+            // OP_SETTABLE => (),
+            // OP_NEWTABLE => (),
+            // OP_SELF => (),
+            OP_ADD => add(self, vm),
+            OP_SUB => sub(self, vm),
+            OP_MUL => mul(self, vm),
+            OP_MOD => mod_(self, vm),
+            OP_POW => pow(self, vm),
+            OP_DIV => div(self, vm),
+            OP_IDIV => idiv(self, vm),
+            OP_BAND => band(self, vm),
+            OP_BOR => bor(self, vm),
+            OP_BXOR => bxor(self, vm),
+            OP_SHL => bshl(self, vm),
+            OP_SHR => bshr(self, vm),
+            OP_UNM => unm(self, vm),
+            OP_BNOT => bnot(self, vm),
+            OP_NOT => not(self, vm),
+            OP_LEN => length(self, vm),
+            OP_CONCAT => concat(self, vm),
+            OP_JMP => jmp(self, vm),
+            OP_EQ => eq(self, vm),
+            OP_LT => lt(self, vm),
+            OP_LE => le(self, vm),
+            OP_TEST => test(self, vm),
+            OP_TESTSET => test_set(self, vm),
+            // OP_CALL => (),
+            // OP_TAILCALL => (),
+            // OP_RETURN => (),
+            OP_FORLOOP => for_loop(self, vm),
+            OP_FORPREP => for_prep(self, vm),
+            // OP_TFORCALL => (),
+            // OP_TFORLOOP => (),
+            // OP_SETLIST => (),
+            // OP_CLOSURE => (),
+            // OP_VARARG => (),
+            // OP_EXTRAARG => (),
+            _ => {
+                dbg!(self.opname());
+                unimplemented!()
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::state;
+    use crate::LuaState;
+    use crate::api::LuaAPI;
+    use crate::binary::undump;
+    use crate::binary::reader::tests::LUA_HELLO_WORLD;
+    use super::*;
+
+    #[test]
+    fn execute() {
+        let proto = undump(LUA_HELLO_WORLD.to_vec());
+        let regs_size = proto.max_stack_size;
+        let mut ls = state::new_lua_state((regs_size + 8) as usize, proto);
+        ls.set_top(regs_size as isize);
+        loop {
+            let pc = ls.pc();
+            let inst = ls.fetch();
+            if inst.opcode() != OP_RETURN {
+                inst.execute(&mut ls);
+                print!("[{:04}] {} ", pc + 1, inst.opname());
+            } else {
+                break;
+            }
+            println!("{:?}", ls.stack._raw_data());
+        }
+        
+        let result = ls.stack.get(1);
+        assert_eq!(result.to_integer(), Some(2550));
     }
 }

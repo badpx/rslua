@@ -299,11 +299,15 @@ impl LuaAPI for LuaState {
     }
 
     fn compare(&self, idx1: isize, idx2: isize, op: CompareOp) -> bool {
-        let a = self.stack.get(idx1);
-        let b = self.stack.get(idx2);
-        match op {
-            LUA_OPEQ|LUA_OPLT|LUA_OPLE => compare(&a, &b, op),
-            _ => panic!("Invalid compare operation"),
+        if !self.stack.is_valid(idx1) || !self.stack.is_valid(idx2) {
+            false
+        } else {
+            let a = self.stack.get(idx1);
+            let b = self.stack.get(idx2);
+            match op {
+                LUA_OPEQ|LUA_OPLT|LUA_OPLE => compare(&a, &b, op),
+                _ => panic!("Invalid compare operation"),
+            }
         }
     }
 
@@ -363,8 +367,8 @@ impl LuaAPI for LuaState {
 #[cfg(test)]
 mod tests {
     use crate::binary::reader::tests::LUA_HELLO_WORLD;
-use super::*;
     use crate::binary::undump;
+    use super::*;
 
     #[test]
     fn stack() {

@@ -1,5 +1,5 @@
-use crate::CompareOp;
 use super::lua_value::LuaValue;
+use crate::api::consts::*;
 
 pub fn compare(a: &LuaValue, b: &LuaValue, op: CompareOp) -> bool {
     match op {

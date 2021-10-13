@@ -1,4 +1,4 @@
-use crate::api::lua_vm::LuaVM;
+use crate::api::LuaVM;
 use crate::binary::chunk::{Constant, Prototype};
 use super::lua_stack::LuaStack;
 use super::lua_value::LuaValue;

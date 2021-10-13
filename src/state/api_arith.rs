@@ -1,4 +1,4 @@
-use crate::ArithOp;
+use crate::api::consts::ArithOp;
 use crate::number::math;
 use super::lua_value::LuaValue;
 

@@ -1,8 +1,25 @@
-use crate::api::lua_vm::LuaVM;
+use crate::api::LuaVM;
 use super::instruction::Instruction;
 
-// R(A) = R(B). P.S. move is keyword of Rust
-pub fn _move(i: u32, vm: &mut dyn LuaVM) {
+/* 
+                MOVE Instruction
+                   R(A) = R(B)
+    +---------+---------+---------+---------+
+    |   B:1   |    C:   |   A:3   |   MOVE  |
+    +---------+---------+---------+---------+
+
+        +---------+           +---------+
+        |    d    |     +---->|    b    | <-A 
+        +---------+     |     +---------+
+        |    c    |     |     |    c    |
+        +---------+     |     +---------+
+        |    b    |-----+     |    b    |
+        +---------+           +---------+
+    B-> |    a    |           |    a    |
+        +---------+           +---------+
+         registers             registers
+*/
+pub fn move_(i: u32, vm: &mut dyn LuaVM) {
     let (a, b, _) = i.abc();
     vm.copy(a + 1, b + 1);
 }
