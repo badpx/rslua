@@ -1,22 +1,89 @@
+use core::cell::RefCell;
+use std::rc::Rc;
+use std::fmt;
+use std::hash::{Hash, Hasher};
 use crate::number::math;
 use crate::api::consts::*;
+use super::lua_table::LuaTable;
 
-#[derive(Clone, PartialEq, Debug)]  // Add PartialEq & Debug for unit test.
+#[derive(Clone)]  // Add PartialEq & Debug for unit test.
 pub enum LuaValue {
     Nil,
     Boolean(bool),
     Number(f64),
     Integer(i64),
     Str(String),
+    Table(Rc<RefCell<LuaTable>>),   // mutability inside of something immutable.
+}
+
+impl fmt::Debug for LuaValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LuaValue::Nil => write!(f, "(nil)"),
+            LuaValue::Boolean(b) => write!(f, "({})", b),
+            LuaValue::Integer(i) => write!(f, "({})", i),
+            LuaValue::Number(n) => write!(f, "({})", n),
+            LuaValue::Str(s) => write!(f, "({})", s),
+            LuaValue::Table(_) => write!(f, "(table)"),
+        }
+    }
+}
+
+impl PartialEq for LuaValue {
+    fn eq(&self, other: &LuaValue) -> bool {
+        if let (LuaValue::Nil, LuaValue::Nil) = (self, other) {
+            true
+        } else if let (LuaValue::Boolean(x), LuaValue::Boolean(y)) = (self, other) {
+            x == y
+        } else if let (LuaValue::Integer(x), LuaValue::Integer(y)) = (self, other) {
+            x == y
+        } else if let (LuaValue::Number(x), LuaValue::Number(y)) = (self, other) {
+            x == y
+        }  else if let (LuaValue::Str(x), LuaValue::Str(y)) = (self, other) {
+            x == y
+        }  else if let (LuaValue::Table(x), LuaValue::Table(y)) = (self, other) {
+            Rc::ptr_eq(x, y)
+        } else {
+            false
+        }
+    }
+}
+
+// the trait `std::cmp::Eq` is not implemented for `f64`
+impl Eq for LuaValue { }
+
+// the trait `std::hash::Hash` is not implemented for `f64`
+impl Hash for LuaValue {
+    fn hash<H>(&self, state: &mut H) where H: std::hash::Hasher {
+        match self {
+            LuaValue::Nil => 0.hash(state),
+            LuaValue::Boolean(b) => b.hash(state),
+            LuaValue::Integer(i) => i.hash(state),
+            LuaValue::Number(n) => n.to_bits().hash(state),
+            LuaValue::Str(s) => s.hash(state),
+            LuaValue::Table(t) => t.borrow().hash(state),
+        }
+    }
 }
 
 impl LuaValue {
+    pub fn new_table(narr: usize, nrec: usize) -> LuaValue {
+        LuaValue::Table(Rc::new(RefCell::new(LuaTable::new(narr, nrec))))
+    }
+
+    pub fn is_nil(&self) -> bool {
+        match self {
+            LuaValue::Nil => true,
+            _ => false,
+        }
+    }
     pub fn type_id(&self) -> LuaType {
         match self {
             LuaValue::Nil => LUA_TNIL,
             LuaValue::Boolean(_) => LUA_TBOOLEAN,
             LuaValue::Integer(_) | LuaValue::Number(_) => LUA_TNUMBER,
             LuaValue::Str(_) => LUA_TSTRING,
+            LuaValue::Table(_) => LUA_TTABLE,
         }
     }
 

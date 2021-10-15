@@ -1,3 +1,10 @@
+// Not of high quality, and the result is always even. more detail:
+// https://users.rust-lang.org/t/random-number-without-using-the-external-crate/17260/8
+pub fn random() -> usize {
+    let ptr = Box::into_raw(Box::new(123));
+    ptr as usize
+}
+
 pub fn ifloor_div(a: i64, b: i64) -> i64 {
     if a > 0 && b > 0 || a < 0 && b < 0 || a % b == 0 {
         a / b

@@ -1,6 +1,7 @@
 mod lua_value;
 mod lua_stack;
 mod lua_state;
+mod lua_table;
 mod api_stack;
 mod api_arith;
 mod api_compare;
