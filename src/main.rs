@@ -126,7 +126,7 @@ fn print_detail(proto: &binary::chunk::Prototype) {
             binary::chunk::Constant::Boolean(b) => format!("{}", b),
             binary::chunk::Constant::Integer(i) => format!("{}", i),
             binary::chunk::Constant::Number(f) => format!("{}", f),
-            binary::chunk::Constant::String(s) => format!("\"{}\"", s),
+            binary::chunk::Constant::Str(s) => format!("\"{}\"", s),
             _ => "?".to_string(),
         }
     }

@@ -154,9 +154,9 @@ fn _compare(i: u32, vm: &mut dyn LuaVM, op: CompareOp) {
 }
 
 /* compare */
-pub fn eq(i: u32, vm: &mut LuaVM) { _compare(i, vm, LUA_OPEQ) } // ==
-pub fn lt(i: u32, vm: &mut LuaVM) { _compare(i, vm, LUA_OPLT) } // <
-pub fn le(i: u32, vm: &mut LuaVM) { _compare(i, vm, LUA_OPLE) } // <=
+pub fn eq(i: u32, vm: &mut dyn LuaVM) { _compare(i, vm, LUA_OPEQ) } // ==
+pub fn lt(i: u32, vm: &mut dyn LuaVM) { _compare(i, vm, LUA_OPLT) } // <
+pub fn le(i: u32, vm: &mut dyn LuaVM) { _compare(i, vm, LUA_OPLE) } // <=
 
 /* logical */
 
@@ -177,7 +177,7 @@ pub fn le(i: u32, vm: &mut LuaVM) { _compare(i, vm, LUA_OPLE) } // <=
         +---------+           +---------+
          registers             registers
 */
-pub fn not(i: u32, vm: &mut LuaVM) {
+pub fn not(i: u32, vm: &mut dyn LuaVM) {
     let (a, b, _) = i.abc();
     vm.push_boolean(!vm.to_boolean(b + 1));
     vm.replace(a + 1);
@@ -203,7 +203,7 @@ pub fn not(i: u32, vm: &mut LuaVM) {
         +---------+           +---------+
          registers             registers
 */
-pub fn test_set(i: u32, vm: &mut LuaVM) {
+pub fn test_set(i: u32, vm: &mut dyn LuaVM) {
     let (a, b, c) = i.abc();
     let a = a + 1;
     let b = b + 1;
@@ -231,7 +231,7 @@ pub fn test_set(i: u32, vm: &mut LuaVM) {
         +---------+
          registers 
 */
-pub fn test(i: u32, vm: &mut LuaVM) {
+pub fn test(i: u32, vm: &mut dyn LuaVM) {
     let (a, _, c) = i.abc();
     if vm.to_boolean(a + 1) != (c != 0) {
         vm.add_pc(1);

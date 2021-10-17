@@ -23,7 +23,7 @@ impl fmt::Debug for LuaValue {
             LuaValue::Boolean(b) => write!(f, "({})", b),
             LuaValue::Integer(i) => write!(f, "({})", i),
             LuaValue::Number(n) => write!(f, "({})", n),
-            LuaValue::Str(s) => write!(f, "({})", s),
+            LuaValue::Str(s) => write!(f, "(\"{}\")", s),
             LuaValue::Table(_) => write!(f, "(table)"),
         }
     }

@@ -19,7 +19,7 @@ use super::instruction::Instruction;
         +----------+          +----------+
          registers             registers
 */
-pub fn for_prep(i: u32, vm: &mut LuaVM) {
+pub fn for_prep(i: u32, vm: &mut dyn LuaVM) {
     let (a, sbx) = i.a_sbx();
     let a = a + 1;
 
@@ -58,25 +58,7 @@ pub fn for_prep(i: u32, vm: &mut LuaVM) {
         +----------+          +----------+
          registers             registers
 */
-pub fn for_loop(i: u32, vm: &mut LuaVM) {
-    let (mut a, sbx) = i.a_sbx();
-    a += 1;
-
-    // R(A)+=R(A+2);
-    vm.push_value(a + 2);
-    vm.push_value(a);
-    vm.arith(LUA_OPADD);
-    vm.replace(a);
-
-    let positive_step = vm.to_number(a + 2) >= 0.0;
-    if positive_step && vm.compare(a, a + 1, LUA_OPLE) || !positive_step && vm.compare(a + 1, a, LUA_OPLE) {
-        // pc+=sBx; R(A+3)=R(A)
-        vm.add_pc(sbx);
-        vm.copy(a, a + 3);
-    }
-}
-/*
-pub fn for_loop(i: u32, vm: &mut LuaVM) {
+pub fn for_loop(i: u32, vm: &mut dyn LuaVM) {
     let (a, sbx) = i.a_sbx();
     let a = a + 1;
     // R(A) += R(A+2)
@@ -91,4 +73,3 @@ pub fn for_loop(i: u32, vm: &mut LuaVM) {
             vm.copy(a, a + 3);  // R(A+3) = R(A)
         }
 }
-*/

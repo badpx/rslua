@@ -123,7 +123,7 @@ impl Reader {
             chunk::TAG_BOOLEAN => chunk::Constant::Boolean(self.read_byte() != 0),
             chunk::TAG_INTEGER => chunk::Constant::Integer(self.read_lua_integer()),
             chunk::TAG_NUMBER => chunk::Constant::Number(self.read_lua_number()),
-            chunk::TAG_SHORT_STR | chunk::TAG_LONG_STR => chunk::Constant::String(self.read_string()),
+            chunk::TAG_SHORT_STR | chunk::TAG_LONG_STR => chunk::Constant::Str(self.read_string()),
             _ => panic!("Corrupted!"),
         }
     }
@@ -156,7 +156,7 @@ pub mod tests {
         end
     end
 */ 
-pub const LUA_HELLO_WORLD: &[u8] = &[
+pub const LUA_FOR_LOOP: &[u8] = &[
         0x1b, 0x4c, 0x75, 0x61, 0x53, 0x00, 0x19, 0x93, 0x0d, 0x0a, 0x1a, 0x0a,
         0x04, 0x08, 0x04, 0x08, 0x08, 0x78, 0x56, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x77, 0x40, 0x01, 0x0c, 0x40,
@@ -186,7 +186,7 @@ pub const LUA_HELLO_WORLD: &[u8] = &[
 
     #[test]
     fn check_header() {
-        let mut reader = Reader::new(LUA_HELLO_WORLD.to_vec());
+        let mut reader = Reader::new(LUA_FOR_LOOP.to_vec());
         reader.check_header();
     }
 }

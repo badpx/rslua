@@ -311,6 +311,7 @@ impl LuaAPI for LuaState {
         }
     }
 
+    /* miscellaneous methods */
     /*
                   len(2)
         +-------+       +-------+
@@ -327,6 +328,8 @@ impl LuaAPI for LuaState {
         let val = self.stack.get(idx);
         if let LuaValue::Str(s) = val {
             self.stack.push(LuaValue::Integer(s.len() as i64));
+        } else if let LuaValue::Table(tbl) = val {
+            self.stack.push(LuaValue::Integer(tbl.borrow().len() as i64));
         } else {
             panic!("TODO: need support more type!");
         }
@@ -362,17 +365,160 @@ impl LuaAPI for LuaState {
         }
         // n == 1, do nothing.
     }
+
+    /* get functions (Lua -> stack) */
+    fn create_table(&mut self, narr: usize, nrec: usize) {
+        self.stack.push(LuaValue::new_table(narr, nrec));
+    }
+
+    fn new_table(&mut self) {
+        self.create_table(0, 0);
+    }
+
+    /*
+               get_table(2)
+        +-------+       +-------+
+        |   k   |-{[]}->|  t[k] |
+        +-------+   |   +-------+
+        |   c   |   |   |   c   |
+        +-------+   |   +-------+
+        |   t   |---+   |   b   |
+        +-------+       +-------+
+        |   a   |       |   a   |
+        +-------+       +-------+
+    */
+    fn get_table(&mut self, idx: isize) -> i8 {
+        let t = self.stack.get(idx);
+        let k = self.stack.pop();
+        self._get_table(&t, &k)
+    }
+
+    /*
+            get_field(2, "k")
+        +-------+  "k"    +-------+
+        |       |   |  +->|  t.k  |
+        +-------+   |  |  +-------+
+        |   c   |  {[]}+  |   c   |
+        +-------+   |     +-------+
+        |   t   |---+     |   b   |
+        +-------+         +-------+
+        |   a   |         |   a   |
+        +-------+         +-------+
+    */
+    fn get_field(&mut self, idx: isize, k: &str) -> LuaType {
+        let t = self.stack.get(idx);
+        let k = LuaValue::Str(k.to_string());
+        self._get_table(&t, &k)
+    }
+
+    /*
+                get_i(2,3)
+        +-------+   3     +-------+
+        |       |   |  +->|  t[3] |
+        +-------+   |  |  +-------+
+        |   c   |  {[]}+  |   c   |
+        +-------+   |     +-------+
+        |   t   |---+     |   b   |
+        +-------+         +-------+
+        |   a   |         |   a   |
+        +-------+         +-------+
+    */
+    fn get_i(&mut self, idx: isize, i: i64) -> i8 {
+        let t = self.stack.get(idx);
+        let k = LuaValue::Integer(i);
+        self._get_table(&t, &k)
+    }
+
+    // set functions (stack -> Lua)
+
+    /*          set_table(2)
+                  t[k]=v
+        +-------+ | |  |  +-------+
+        |   v   |-+-+--+  |       |
+        +-------+ | |     +-------+
+        |   k   |-+-+     |       |
+        +-------+ |       +-------+
+        |   t   |-+       |   t   |
+        +-------+         +-------+
+        |   a   |         |   a   |
+        +-------+         +-------+
+    */
+    fn set_table(&mut self, idx: isize) {
+        let t = self.stack.get(idx);
+        let v = self.stack.pop();
+        let k = self.stack.pop();
+        LuaState::_set_table(&t, k, v);
+    }
+
+    /*      set_field(2,"k")
+                  t.k=v
+        +-------+ |   |  +-------+
+        |   v   |-+---+  |       |
+        +-------+ |      +-------+
+        |   c   | +      |   c   |
+        +-------+ |      +-------+
+        |   t   |-+      |   t   |
+        +-------+        +-------+
+        |   a   |        |   a   |
+        +-------+        +-------+
+    */
+    fn set_field(&mut self, idx: isize, k: &str) {
+        let t = self.stack.get(idx);
+        let k = LuaValue::Str(k.to_string());
+        let v = self.stack.pop();
+        LuaState::_set_table(&t, k, v);
+    }
+
+    /*        set_field(2,3)
+                  t[3]=v
+        +-------+ |    | +-------+
+        |   v   |-+----+ |       |
+        +-------+ |      +-------+
+        |   c   | +      |   c   |
+        +-------+ |      +-------+
+        |   t   |-+      |   t   |
+        +-------+        +-------+
+        |   a   |        |   a   |
+        +-------+        +-------+
+    */
+    fn set_i(&mut self, idx: isize, i: i64) {
+        let t = self.stack.get(idx);
+        let v = self.stack.pop();
+        let k = LuaValue::Integer(i);
+        LuaState::_set_table(&t, k, v);
+    }
+}
+
+impl LuaState {
+    fn _get_table(&mut self, t: &LuaValue, k: &LuaValue) -> i8 {
+        if let LuaValue::Table(tbl) = t {
+            let v = tbl.borrow().get(k);
+            let type_id = v.type_id();
+            self.stack.push(v);
+            type_id
+        } else {
+            todo!()
+        }
+    }
+
+    fn _set_table(t: &LuaValue, k: LuaValue, v: LuaValue) {
+        if let LuaValue::Table(tbl) = t {
+            tbl.borrow_mut().put(k, v);
+        } else {
+            todo!();
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::binary::reader::tests::LUA_HELLO_WORLD;
+    use crate::binary::reader::tests::LUA_FOR_LOOP;
     use crate::binary::undump;
     use super::*;
 
     #[test]
     fn stack() {
-        let proto = undump(LUA_HELLO_WORLD.to_vec());
+        let proto = undump(LUA_FOR_LOOP.to_vec());
         let mut ls = LuaState::new(proto.max_stack_size as usize, proto);
         assert_eq!(*ls.stack._raw_data(), Vec::<LuaValue>::new());
         ls.push_boolean(true);
@@ -397,7 +543,7 @@ mod tests {
 
     #[test]
     fn arith() {
-        let proto = undump(LUA_HELLO_WORLD.to_vec());
+        let proto = undump(LUA_FOR_LOOP.to_vec());
         let mut ls = LuaState::new(proto.max_stack_size as usize, proto);
         ls.push_integer(1);
         assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1)]);

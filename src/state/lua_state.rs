@@ -44,7 +44,7 @@ fn get_const(&mut self, idx: isize) {
         Constant::Boolean(b) => LuaValue::Boolean(*b),
         Constant::Integer(i) => LuaValue::Integer(*i),
         Constant::Number(n) => LuaValue::Number(*n),
-        Constant::String(s) => LuaValue::Str(s.clone()),
+        Constant::Str(s) => LuaValue::Str((*s).clone()),
     };
     self.stack.push(val);
 }

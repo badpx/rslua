@@ -27,6 +27,7 @@ impl LuaTable {
     pub fn len(&self) -> usize {
         self.arr.len()
     }
+
     pub fn get(&self, key: &LuaValue) -> LuaValue {
         if let Some(idx) = to_index(key) {
             if idx <= self.arr.len() {
@@ -68,12 +69,12 @@ impl LuaTable {
                 }
                 return ;
             }
+        }
 
-            if !val.is_nil() {
-                self.map.insert(key, val);
-            } else {
-                self.map.remove(&key);
-            }
+        if !val.is_nil() {
+            self.map.insert(key, val);
+        } else {
+            self.map.remove(&key);
         }
     }
 

@@ -60,7 +60,7 @@ pub enum Constant {
     Boolean(bool),
     Integer(i64),
     Number(f64),
-    String(String),
+    Str(String),
 }
 
 pub struct Upvalue {
