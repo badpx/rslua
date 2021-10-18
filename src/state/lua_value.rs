@@ -5,6 +5,7 @@ use std::hash::{Hash, Hasher};
 use crate::number::math;
 use crate::api::consts::*;
 use super::lua_table::LuaTable;
+use super::closure::Closure;
 
 #[derive(Clone)]  // Add PartialEq & Debug for unit test.
 pub enum LuaValue {
@@ -14,6 +15,7 @@ pub enum LuaValue {
     Integer(i64),
     Str(String),
     Table(Rc<RefCell<LuaTable>>),   // mutability inside of something immutable.
+    Function(Rc<Closure>),
 }
 
 impl fmt::Debug for LuaValue {
@@ -25,6 +27,7 @@ impl fmt::Debug for LuaValue {
             LuaValue::Number(n) => write!(f, "({})", n),
             LuaValue::Str(s) => write!(f, "(\"{}\")", s),
             LuaValue::Table(_) => write!(f, "(table)"),
+            LuaValue::Function(_) => write!(f, "(function)"),
         }
     }
 }
@@ -42,6 +45,8 @@ impl PartialEq for LuaValue {
         }  else if let (LuaValue::Str(x), LuaValue::Str(y)) = (self, other) {
             x == y
         }  else if let (LuaValue::Table(x), LuaValue::Table(y)) = (self, other) {
+            Rc::ptr_eq(x, y)
+        }  else if let (LuaValue::Function(x), LuaValue::Function(y)) = (self, other) {
             Rc::ptr_eq(x, y)
         } else {
             false
@@ -62,6 +67,7 @@ impl Hash for LuaValue {
             LuaValue::Number(n) => n.to_bits().hash(state),
             LuaValue::Str(s) => s.hash(state),
             LuaValue::Table(t) => t.borrow().hash(state),
+            LuaValue::Function(f) => f.hash(state),
         }
     }
 }
@@ -84,6 +90,7 @@ impl LuaValue {
             LuaValue::Integer(_) | LuaValue::Number(_) => LUA_TNUMBER,
             LuaValue::Str(_) => LUA_TSTRING,
             LuaValue::Table(_) => LUA_TTABLE,
+            LuaValue::Function(_) => LUA_TFUNCTION,
         }
     }
 

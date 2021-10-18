@@ -190,7 +190,7 @@ mod tests {
     fn test_forloop() {
         let proto = undump(LUA_FOR_LOOP.to_vec());
         let ls = execute(proto);
-        let result = ls.stack.get(1);
+        let result = ls.stack().get(1);
         assert_eq!(result.to_integer(), Some(2550));
     }
 
@@ -215,7 +215,7 @@ mod tests {
             } else {
                 break;
             }
-            println!("{:?}", ls.stack._raw_data());
+            println!("{:?}", ls.stack()._raw_data());
         }
         ls 
     }

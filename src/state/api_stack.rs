@@ -8,15 +8,15 @@ use super::api_compare::compare;
 impl LuaAPI for LuaState {
     /* =========================== Basic Methods =========================== */
     fn get_top(&self) -> isize {
-        self.stack.top()
+        self.stack().top()
     }
 
     fn abs_index(&self, idx: isize) -> isize {
-        self.stack.abs_index(idx)
+        self.stack().abs_index(idx)
     }
 
     fn check_stack(&mut self, n: usize) -> bool {
-        self.stack.check(n);
+        self.stack_mut().check(n);
         return true;    // Never fails
     }
 
@@ -49,8 +49,8 @@ impl LuaAPI for LuaState {
         +-------+       +-------+
     */
     fn copy(&mut self, from: isize, to: isize) {
-        let val = self.stack.get(from);
-        self.stack.set(to, val);
+        let val = self.stack().get(from);
+        self.stack_mut().set(to, val);
     }
 
     /*
@@ -66,8 +66,8 @@ impl LuaAPI for LuaState {
         +-------+       +-------+
     */
     fn push_value(&mut self, idx: isize) {
-        let val = self.stack.get(idx);
-        self.stack.push(val);
+        let val = self.stack().get(idx);
+        self.stack_mut().push(val);
     }
 
     /*
@@ -83,8 +83,8 @@ impl LuaAPI for LuaState {
         +-------+       +-------+
     */
     fn replace(&mut self, idx: isize) {
-        let val = self.stack.pop();
-        self.stack.set(idx, val);
+        let val = self.stack_mut().pop();
+        self.stack_mut().set(idx, val);
     }
 
     /*
@@ -121,27 +121,27 @@ impl LuaAPI for LuaState {
     }
 
     fn rotate(&mut self, idx: isize, n: isize) {
-        let t = self.stack.top() - 1;
-        let p = self.stack.abs_index(idx) - 1;
+        let t = self.stack().top() - 1;
+        let p = self.stack().abs_index(idx) - 1;
         let m = if n >= 0 { t - n } else { p - n - 1 };
-        self.stack.reverse(p as usize, m as usize);
-        self.stack.reverse(m as usize + 1, t as usize);
-        self.stack.reverse(p as usize, t as usize);
+        self.stack_mut().reverse(p as usize, m as usize);
+        self.stack_mut().reverse(m as usize + 1, t as usize);
+        self.stack_mut().reverse(p as usize, t as usize);
     }
 
     fn set_top(&mut self, idx: isize) {
-        let new_top = self.stack.abs_index(idx);
+        let new_top = self.stack().abs_index(idx);
         if new_top < 0 {
             panic!("Stack underflow!");
         }
-        let n = self.stack.top() - new_top;
+        let n = self.stack().top() - new_top;
         if n > 0 {
             for _ in 0..n {
-                self.stack.pop();
+                self.stack_mut().pop();
             }
         } else {
             for _ in n..0 {
-                self.stack.push(LuaValue::Nil);
+                self.stack_mut().push(LuaValue::Nil);
             }
         }
     }
@@ -161,7 +161,7 @@ impl LuaAPI for LuaState {
         }
     }
     fn type_id(&self, idx: isize) -> LuaType {
-        if self.stack.is_valid(idx) { self.stack.get(idx).type_id() } else { LUA_TNONE }
+        if self.stack().is_valid(idx) { self.stack().get(idx).type_id() } else { LUA_TNONE }
     }
     fn is_none(&self, idx: isize) -> bool {
         self.type_id(idx) == LUA_TNONE
@@ -187,7 +187,7 @@ impl LuaAPI for LuaState {
     }
 
     fn is_integer(&self, idx: isize) -> bool {
-        match self.stack.get(idx) {
+        match self.stack().get(idx) {
             LuaValue::Integer(_) => true,
             _ => false,
         }
@@ -207,7 +207,7 @@ impl LuaAPI for LuaState {
     }
 
     fn to_boolean(&self, idx: isize) -> bool {
-        self.stack.get(idx).to_boolean()
+        self.stack().get(idx).to_boolean()
     }
 
     fn to_integer(&self, idx: isize) -> i64 {
@@ -215,7 +215,7 @@ impl LuaAPI for LuaState {
     }
 
     fn to_integerx(&self, idx: isize) -> std::option::Option<i64> {
-        self.stack.get(idx).to_integer()
+        self.stack().get(idx).to_integer()
     }
 
     fn to_number(&self, idx: isize) -> f64 {
@@ -223,7 +223,7 @@ impl LuaAPI for LuaState {
     }
 
     fn to_numberx(&self, idx: isize) -> std::option::Option<f64> {
-        self.stack.get(idx).to_number()
+        self.stack().get(idx).to_number()
     }
 
     fn to_string(&self, idx: isize) -> std::string::String {
@@ -231,7 +231,7 @@ impl LuaAPI for LuaState {
     }
     
     fn to_stringx(&self, idx: isize) -> std::option::Option<std::string::String> {
-        match self.stack.get(idx) {
+        match self.stack().get(idx) {
             LuaValue::Str(s) => Some(s),
             LuaValue::Integer(i) => Some(i.to_string()),
             LuaValue::Number(n) => Some(n.to_string()),
@@ -241,19 +241,19 @@ impl LuaAPI for LuaState {
 
     /* =========================== Push Methods =========================== */
     fn push_nil(&mut self) {
-        self.stack.push(LuaValue::Nil);
+        self.stack_mut().push(LuaValue::Nil);
     }
     fn push_boolean(&mut self, b: bool) {
-        self.stack.push(LuaValue::Boolean(b));
+        self.stack_mut().push(LuaValue::Boolean(b));
     }
     fn push_integer(&mut self, i: i64) {
-        self.stack.push(LuaValue::Integer(i));
+        self.stack_mut().push(LuaValue::Integer(i));
     }
     fn push_number(&mut self, n: f64) {
-        self.stack.push(LuaValue::Number(n));
+        self.stack_mut().push(LuaValue::Number(n));
     }
     fn push_string(&mut self, s: std::string::String) {
-        self.stack.push(LuaValue::Str(s));
+        self.stack_mut().push(LuaValue::Str(s));
     }
 
     /* ================= comparison and arithmetic methods ================= */
@@ -282,16 +282,16 @@ impl LuaAPI for LuaState {
     */
     fn arith(&mut self, op: ArithOp) {
         if op != LUA_OPUNM && op != LUA_OPBNOT {
-            let b = self.stack.pop();
-            let a = self.stack.pop();
+            let b = self.stack_mut().pop();
+            let a = self.stack_mut().pop();
             if let Some(ret) = api_arith::_arith(&a, &b, op) {
-                self.stack.push(ret);
+                self.stack_mut().push(ret);
                 return;
             }
         } else {
-            let a = self.stack.pop();
+            let a = self.stack_mut().pop();
             if let Some(ret) = api_arith::_arith(&a, &a, op) {
-                self.stack.push(ret);
+                self.stack_mut().push(ret);
                 return;
             }
         }
@@ -299,11 +299,11 @@ impl LuaAPI for LuaState {
     }
 
     fn compare(&self, idx1: isize, idx2: isize, op: CompareOp) -> bool {
-        if !self.stack.is_valid(idx1) || !self.stack.is_valid(idx2) {
+        if !self.stack().is_valid(idx1) || !self.stack().is_valid(idx2) {
             false
         } else {
-            let a = self.stack.get(idx1);
-            let b = self.stack.get(idx2);
+            let a = self.stack().get(idx1);
+            let b = self.stack().get(idx2);
             match op {
                 LUA_OPEQ|LUA_OPLT|LUA_OPLE => compare(&a, &b, op),
                 _ => panic!("Invalid compare operation"),
@@ -325,11 +325,11 @@ impl LuaAPI for LuaState {
         +-------+       +-------+
     */
     fn len(&mut self, idx: isize) {
-        let val = self.stack.get(idx);
+        let val = self.stack().get(idx);
         if let LuaValue::Str(s) = val {
-            self.stack.push(LuaValue::Integer(s.len() as i64));
+            self.stack_mut().push(LuaValue::Integer(s.len() as i64));
         } else if let LuaValue::Table(tbl) = val {
-            self.stack.push(LuaValue::Integer(tbl.borrow().len() as i64));
+            self.stack_mut().push(LuaValue::Integer(tbl.borrow().len() as i64));
         } else {
             panic!("TODO: need support more type!");
         }
@@ -349,15 +349,15 @@ impl LuaAPI for LuaState {
     */
     fn concat(&mut self, n: isize) {
         if n == 0 {
-            self.stack.push(LuaValue::Str("".to_string()));
+            self.stack_mut().push(LuaValue::Str("".to_string()));
         } else if n > 1 {
             for _ in 1..n {
                 if self.is_string(-1) && self.is_string(-2) {
                     let s2 = self.to_string(-1);
                     let s1 = self.to_string(-2);
-                    self.stack.pop();
-                    self.stack.pop();
-                    self.stack.push(LuaValue::Str(s1 + &s2));
+                    self.stack_mut().pop();
+                    self.stack_mut().pop();
+                    self.stack_mut().push(LuaValue::Str(s1 + &s2));
                 } else {
                     panic!("Concatenation error!");
                 }
@@ -368,7 +368,7 @@ impl LuaAPI for LuaState {
 
     /* get functions (Lua -> stack) */
     fn create_table(&mut self, narr: usize, nrec: usize) {
-        self.stack.push(LuaValue::new_table(narr, nrec));
+        self.stack_mut().push(LuaValue::new_table(narr, nrec));
     }
 
     fn new_table(&mut self) {
@@ -388,8 +388,8 @@ impl LuaAPI for LuaState {
         +-------+       +-------+
     */
     fn get_table(&mut self, idx: isize) -> i8 {
-        let t = self.stack.get(idx);
-        let k = self.stack.pop();
+        let t = self.stack().get(idx);
+        let k = self.stack_mut().pop();
         self._get_table(&t, &k)
     }
 
@@ -406,7 +406,7 @@ impl LuaAPI for LuaState {
         +-------+         +-------+
     */
     fn get_field(&mut self, idx: isize, k: &str) -> LuaType {
-        let t = self.stack.get(idx);
+        let t = self.stack().get(idx);
         let k = LuaValue::Str(k.to_string());
         self._get_table(&t, &k)
     }
@@ -424,7 +424,7 @@ impl LuaAPI for LuaState {
         +-------+         +-------+
     */
     fn get_i(&mut self, idx: isize, i: i64) -> i8 {
-        let t = self.stack.get(idx);
+        let t = self.stack().get(idx);
         let k = LuaValue::Integer(i);
         self._get_table(&t, &k)
     }
@@ -444,9 +444,9 @@ impl LuaAPI for LuaState {
         +-------+         +-------+
     */
     fn set_table(&mut self, idx: isize) {
-        let t = self.stack.get(idx);
-        let v = self.stack.pop();
-        let k = self.stack.pop();
+        let t = self.stack().get(idx);
+        let v = self.stack_mut().pop();
+        let k = self.stack_mut().pop();
         LuaState::_set_table(&t, k, v);
     }
 
@@ -463,9 +463,9 @@ impl LuaAPI for LuaState {
         +-------+        +-------+
     */
     fn set_field(&mut self, idx: isize, k: &str) {
-        let t = self.stack.get(idx);
+        let t = self.stack().get(idx);
         let k = LuaValue::Str(k.to_string());
-        let v = self.stack.pop();
+        let v = self.stack_mut().pop();
         LuaState::_set_table(&t, k, v);
     }
 
@@ -482,8 +482,8 @@ impl LuaAPI for LuaState {
         +-------+        +-------+
     */
     fn set_i(&mut self, idx: isize, i: i64) {
-        let t = self.stack.get(idx);
-        let v = self.stack.pop();
+        let t = self.stack().get(idx);
+        let v = self.stack_mut().pop();
         let k = LuaValue::Integer(i);
         LuaState::_set_table(&t, k, v);
     }
@@ -494,7 +494,7 @@ impl LuaState {
         if let LuaValue::Table(tbl) = t {
             let v = tbl.borrow().get(k);
             let type_id = v.type_id();
-            self.stack.push(v);
+            self.stack_mut().push(v);
             type_id
         } else {
             todo!()
@@ -520,25 +520,25 @@ mod tests {
     fn stack() {
         let proto = undump(LUA_FOR_LOOP.to_vec());
         let mut ls = LuaState::new(proto.max_stack_size as usize, proto);
-        assert_eq!(*ls.stack._raw_data(), Vec::<LuaValue>::new());
+        assert_eq!(*ls.stack()._raw_data(), Vec::<LuaValue>::new());
         ls.push_boolean(true);
-        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true)]);
+        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Boolean(true)]);
         ls.push_integer(10);
-        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10)]);
+        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10)]);
         ls.push_nil(); 
-        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Nil]);
+        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Nil]);
         ls.push_string("hello".to_string()); 
-        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Nil, LuaValue::Str("hello".to_string())]);
+        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Nil, LuaValue::Str("hello".to_string())]);
         ls.push_value(-4); 
-        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Nil, LuaValue::Str("hello".to_string()), LuaValue::Boolean(true)]);
+        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Nil, LuaValue::Str("hello".to_string()), LuaValue::Boolean(true)]);
         ls.replace(3); 
-        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Boolean(true), LuaValue::Str("hello".to_string())]);
+        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Boolean(true), LuaValue::Str("hello".to_string())]);
         ls.set_top(6); 
-        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Boolean(true), LuaValue::Str("hello".to_string()), LuaValue::Nil, LuaValue::Nil]);
+        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Boolean(true), LuaValue::Str("hello".to_string()), LuaValue::Nil, LuaValue::Nil]);
         ls.remove(-3); 
-        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Boolean(true), LuaValue::Nil, LuaValue::Nil]);
+        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Boolean(true), LuaValue::Nil, LuaValue::Nil]);
         ls.set_top(-5); 
-        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Boolean(true)]);
+        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Boolean(true)]);
     }
 
     #[test]
@@ -546,21 +546,21 @@ mod tests {
         let proto = undump(LUA_FOR_LOOP.to_vec());
         let mut ls = LuaState::new(proto.max_stack_size as usize, proto);
         ls.push_integer(1);
-        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1)]);
+        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Integer(1)]);
         ls.push_string("2.0".to_string());
-        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string())]);
+        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string())]);
         ls.push_string("3.0".to_string());
-        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string()), LuaValue::Str("3.0".to_string())]);
+        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string()), LuaValue::Str("3.0".to_string())]);
         ls.push_number(4.0);
-        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string()), LuaValue::Str("3.0".to_string()), LuaValue::Number(4.0)]);
+        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string()), LuaValue::Str("3.0".to_string()), LuaValue::Number(4.0)]);
 
         ls.arith(LUA_OPADD);
-        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string()), LuaValue::Number(7.0)]);
+        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string()), LuaValue::Number(7.0)]);
         ls.arith(LUA_OPBNOT);
-        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string()), LuaValue::Integer(-8)]);
+        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string()), LuaValue::Integer(-8)]);
         ls.len(2);
-        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string()), LuaValue::Integer(-8), LuaValue::Integer(3)]);
+        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string()), LuaValue::Integer(-8), LuaValue::Integer(3)]);
         ls.concat(3);
-        assert_eq!(*ls.stack._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0-83".to_string())]);
+        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Integer(1), LuaValue::Str("2.0-83".to_string())]);
     }
 }

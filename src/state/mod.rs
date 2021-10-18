@@ -5,6 +5,7 @@ mod lua_table;
 mod api_stack;
 mod api_arith;
 mod api_compare;
+mod closure;
 
 pub use self::lua_state::LuaState;
 use crate::binary::chunk::Prototype;
