@@ -31,8 +31,31 @@ impl LuaStack {
         self.slots.push(val);
     }
 
+    pub fn push_n(&mut self, mut vals: Vec<LuaValue>, n: isize) {
+        vals.reverse();
+        let nvals = vals.len();
+        let un = if n < 0 { nvals } else { n as usize };
+
+        for i in 0..un {
+            if i < nvals {
+                self.push(vals.pop().unwrap());
+            } else {
+                self.push(LuaValue::Nil);
+            }
+        }
+    }
+
     pub fn pop(&mut self) -> LuaValue {
         self.slots.pop().unwrap()
+    }
+
+    pub fn pop_n(&mut self, n: usize) -> Vec<LuaValue> {
+        let mut vec = Vec::with_capacity(n);
+        for _ in 0..n {
+            vec.push(self.pop());
+        }
+        vec.reverse();
+        vec
     }
 
     pub fn abs_index(&self, idx: isize) -> isize {
@@ -67,6 +90,23 @@ impl LuaStack {
             self.slots[abs_idx as usize - 1] = val;
         } else {
             panic!("Invalid index!");
+        }
+    }
+
+    pub fn set_top(&mut self, idx: isize) {
+        let new_top = self.abs_index(idx);
+        if new_top < 0 {
+            panic!("Stack underflow!");
+        }
+        let n = self.top() - new_top;
+        if n > 0 {
+            for _ in 0..n {
+                self.pop();
+            }
+        } else {
+            for _ in n..0 {
+                self.push(LuaValue::Nil);
+            }
         }
     }
 

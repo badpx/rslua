@@ -1,9 +1,12 @@
-use crate::api::LuaAPI;
-use super::lua_state::LuaState;
+use std::rc::Rc;
+use crate::api::{LuaAPI, LuaVM};
 use crate::api::consts::*;
+use super::lua_state::LuaState;
 use super::lua_value::LuaValue;
 use super::api_arith;
 use super::api_compare::compare;
+use super::lua_stack::LuaStack;
+use crate::vm::instruction::Instruction;
 
 impl LuaAPI for LuaState {
     /* =========================== Basic Methods =========================== */
@@ -130,20 +133,7 @@ impl LuaAPI for LuaState {
     }
 
     fn set_top(&mut self, idx: isize) {
-        let new_top = self.stack().abs_index(idx);
-        if new_top < 0 {
-            panic!("Stack underflow!");
-        }
-        let n = self.stack().top() - new_top;
-        if n > 0 {
-            for _ in 0..n {
-                self.stack_mut().pop();
-            }
-        } else {
-            for _ in n..0 {
-                self.stack_mut().push(LuaValue::Nil);
-            }
-        }
+        self.stack_mut().set_top(idx);
     }
 
     /* =========================== Access Methods =========================== */
@@ -487,6 +477,26 @@ impl LuaAPI for LuaState {
         let k = LuaValue::Integer(i);
         LuaState::_set_table(&t, k, v);
     }
+
+    // Load chunk to top of stack
+    fn load(&mut self, chunk: Vec<u8>, /*chunk_name*/_: &str, /*mode*/_: & str) -> u8 {
+        let proto = crate::binary::undump(chunk);
+        let c = LuaValue::new_lua_closure(proto);
+        self.stack_mut().push(c);
+        0   // TODO:
+    }
+
+    fn call(&mut self, nargs: usize, nresults: isize) {
+        let val = self.stack().get(-(nargs as isize + 1));
+        if let LuaValue::Function(c) = val {
+            // Debug info
+            println!("call {}<{}, {}>", c.proto.source.clone().unwrap(), c.proto.line_defined, c.proto.last_line_defined);
+
+            self.call_lua_closure(nargs, nresults, c);
+        } else {
+            panic!("Not function!");
+        }
+    }
 }
 
 impl LuaState {
@@ -508,18 +518,67 @@ impl LuaState {
             todo!();
         }
     }
+    
+    fn call_lua_closure(&mut self, nargs: usize, nresults: isize, c: Rc<super::closure::Closure>) {
+        let nregs = c.proto.max_stack_size as usize;
+        let nparams = c.proto.num_params as usize;
+        let is_vararg = c.proto.is_vararg == 1;
+
+        // create new lua stack
+        let mut new_stack = LuaStack::new(nregs + 20, c);
+
+        // pop args and func
+        let mut args = self.stack_mut().pop_n(nargs);
+        self.stack_mut().pop(); // pop func
+        if nargs > nparams {
+            // check if varargs func
+            for _ in nparams..nargs {
+                new_stack.varargs.push(args.pop().unwrap());
+            }
+            if is_vararg {
+                new_stack.varargs.reverse();
+            } else {
+                new_stack.varargs.clear();
+            }
+        }
+        new_stack.push_n(args, nparams as isize);
+        new_stack.set_top(nregs as isize);
+
+        // run closure
+        self.push_frame(new_stack);
+        self.run_lua_closure();
+        new_stack = self.pop_frame();
+
+        // return results
+        if nresults != 0 {
+            let nrets = new_stack.top() as usize - nregs;
+            let results = new_stack.pop_n(nrets);
+            self.stack_mut().check(nrets);
+            self.stack_mut().push_n(results, nresults);
+        }
+    }
+
+    fn run_lua_closure(&mut self) {
+        loop {
+            let inst = self.fetch();
+            inst.execute(self);
+            if inst.opcode() == crate::vm::opcodes::OP_RETURN {
+                break;
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::state::new_lua_state;
     use crate::binary::reader::tests::LUA_FOR_LOOP;
-    use crate::binary::undump;
     use super::*;
 
     #[test]
     fn stack() {
-        let proto = undump(LUA_FOR_LOOP.to_vec());
-        let mut ls = LuaState::new(proto.max_stack_size as usize, proto);
+        let proto = crate::binary::undump(LUA_FOR_LOOP.to_vec());
+        let mut ls = new_lua_state(proto.max_stack_size as usize, proto);
         assert_eq!(*ls.stack()._raw_data(), Vec::<LuaValue>::new());
         ls.push_boolean(true);
         assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Boolean(true)]);
@@ -543,8 +602,8 @@ mod tests {
 
     #[test]
     fn arith() {
-        let proto = undump(LUA_FOR_LOOP.to_vec());
-        let mut ls = LuaState::new(proto.max_stack_size as usize, proto);
+        let proto = crate::binary::undump(LUA_FOR_LOOP.to_vec());
+        let mut ls = new_lua_state(proto.max_stack_size as usize, proto);
         ls.push_integer(1);
         assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Integer(1)]);
         ls.push_string("2.0".to_string());

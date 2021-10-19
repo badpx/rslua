@@ -9,7 +9,10 @@ mod closure;
 
 pub use self::lua_state::LuaState;
 use crate::binary::chunk::Prototype;
+use std::rc::Rc;
 
-pub fn new_lua_state(stack_size: usize, proto: Prototype) -> LuaState {
-    LuaState::new(stack_size, proto)
+pub fn new_lua_state(stack_size: usize, proto: Rc<Prototype>) -> LuaState {
+    let mut ls = LuaState::new();
+    ls.push_frame(self::lua_stack::LuaStack::new(stack_size, Rc::new(self::closure::Closure::new(proto))));
+    ls
 }

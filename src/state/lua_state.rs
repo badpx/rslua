@@ -12,12 +12,27 @@ pub struct LuaState {
 }
 
 impl LuaState {
-    pub fn new(stack_size: usize, proto: Prototype) -> LuaState {
-        let closure = Rc::new(Closure::new(Rc::new(proto)));
-        let frame = LuaStack::new(stack_size, closure);
+    pub fn new() -> LuaState {
+        let dummy_proto = Rc::new(Prototype {
+            source: None, // debug
+            line_defined: 0,
+            last_line_defined: 0,
+            num_params: 0,
+            is_vararg: 0,
+            max_stack_size: 0,
+            code: vec![],
+            constants: vec![],
+            upvalues: vec![],
+            protos: vec![],
+            line_info: vec![],     // debug
+            loc_vars: vec![],      // debug
+            upvalue_names: vec![], // debug
+        });
 
+        let dummy_closure = Rc::new(Closure::new(dummy_proto));
+        let dummy_frame = LuaStack::new(20, dummy_closure);
         LuaState {
-            frames: vec![frame],
+            frames: vec![dummy_frame],
         }
     }
 
@@ -29,11 +44,11 @@ impl LuaState {
         self.frames.last().unwrap()
     }
 
-    fn push_frame(&mut self, frame: LuaStack) {
+    pub fn push_frame(&mut self, frame: LuaStack) {
         self.frames.push(frame);
     }
 
-    fn pop_frame(&mut self) -> LuaStack {
+    pub fn pop_frame(&mut self) -> LuaStack {
         self.frames.pop().unwrap()
     }
 }
@@ -76,4 +91,22 @@ fn get_rk(&mut self, rk: isize) {
     }
 }
 
+    fn register_count(&self) -> usize {
+        self.stack().closure.proto.max_stack_size as usize
+    }
+
+    fn load_vararg(&mut self, mut n: isize) {
+        if n < 0 {
+            n = self.stack().varargs.len() as isize;
+        }
+        let varargs = self.stack().varargs.clone();
+        self.stack_mut().check(n as usize);
+        self.stack_mut().push_n(varargs, n);
+    }
+
+    fn load_proto(&mut self, idx: usize) {
+        let proto = self.stack().closure.proto.protos[idx].clone();
+        let closure = LuaValue::new_lua_closure(proto);
+        self.stack_mut().push(closure);
+    }
 }

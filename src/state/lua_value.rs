@@ -4,6 +4,7 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use crate::number::math;
 use crate::api::consts::*;
+use crate::binary::chunk::Prototype;
 use super::lua_table::LuaTable;
 use super::closure::Closure;
 
@@ -75,6 +76,10 @@ impl Hash for LuaValue {
 impl LuaValue {
     pub fn new_table(narr: usize, nrec: usize) -> LuaValue {
         LuaValue::Table(Rc::new(RefCell::new(LuaTable::new(narr, nrec))))
+    }
+
+    pub fn new_lua_closure(proto: Rc<Prototype>) -> LuaValue {
+        LuaValue::Function(Rc::new(Closure::new(proto)))
     }
 
     pub fn is_nil(&self) -> bool {

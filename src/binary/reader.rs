@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use crate::binary::chunk;
 
 pub struct Reader {
@@ -81,13 +82,13 @@ impl Reader {
         assert_eq!(self.read_lua_number(), chunk::LUAC_NUM, "float format mismatch!");
     }
 
-    pub fn read_proto(&mut self) -> chunk::Prototype {
+    pub fn read_proto(&mut self) -> Rc<chunk::Prototype> {
         self._read_proto(None)
     }
 
-    fn _read_proto(&mut self, parent_source: Option<String>) -> chunk::Prototype {
+    fn _read_proto(&mut self, parent_source: Option<String>) -> Rc<chunk::Prototype> {
         let source = self._read_string().or(parent_source);
-        return chunk::Prototype {
+        Rc::new(chunk::Prototype {
             source: source.clone(),
             line_defined: self.read_u32(),
             last_line_defined: self.read_u32(),
@@ -101,7 +102,7 @@ impl Reader {
             line_info: self.read_vec(|r| r.read_u32()),
             loc_vars: self.read_vec(|r| r.read_loc_var()),
             upvalue_names: self.read_vec(|r| r.read_string()),
-        };
+        })
     }
 
     // A template for read vector

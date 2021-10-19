@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 pub const LUA_SIGNATURE: &'static [u8; 4] = b"\x1BLua";
 pub const LUAC_VERSION: u8 = 0x53;
 pub const LUAC_FORMAT: u8 = 0;
@@ -49,7 +51,7 @@ pub struct Prototype {
     pub code: Vec<u32>,
     pub constants: Vec<Constant>,
     pub upvalues: Vec<Upvalue>,
-    pub protos: Vec<Prototype>,
+    pub protos: Vec<Rc<Prototype>>,
     pub line_info: Vec<u32>,
     pub loc_vars: Vec<LocVar>,
     pub upvalue_names: Vec<String>,

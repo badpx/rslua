@@ -4,5 +4,6 @@ mod inst_load;
 mod inst_ops;
 mod inst_for;
 mod inst_table;
+mod inst_call;
 pub mod instruction;
 pub mod opcodes;

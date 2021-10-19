@@ -117,12 +117,31 @@ pub fn set_table(i: u32, vm: &mut dyn LuaVM) {
          registers                 t
 */
 pub fn set_list(i: u32, vm: &mut dyn LuaVM) {
-    let (a, b, c) = i.abc();
-    let a = a + 1;
+    let (mut a, mut b, c) = i.abc();
+    a = a + 1;
     let batch = if c > 0 { c - 1 } else { vm.fetch().ax() };
-    let idx = (batch * LFIELDS_PER_FLUSH) as i64;
+    let mut idx = (batch * LFIELDS_PER_FLUSH) as i64;
+    let b_is_0 = b == 0;
+    if b_is_0 {
+        b = vm.to_integer(-1) as isize - a - 1;
+        vm.pop(1)
+    }
+    
+    vm.check_stack(1);
     for j in 1..=b {
+        idx += 1;
         vm.push_value(a + j);
-        vm.set_i(a, idx + j as i64);
+        vm.set_i(a, idx);
+    }
+
+    if b_is_0 {
+        let nreg = vm.register_count() as isize;
+        for j in (nreg + 1)..=vm.get_top() {
+            idx += 1;
+            vm.push_value(j);
+            vm.set_i(a, idx);
+        }
+        // clear stack
+        vm.set_top(nreg);
     }
 }
