@@ -21,7 +21,7 @@ use super::instruction::Instruction;
 */
 pub fn move_(i: u32, vm: &mut dyn LuaVM) {
     let (a, b, _) = i.abc();
-    vm.copy(a + 1, b + 1);
+    vm.copy(b + 1, a + 1);
 }
 
 pub fn jmp(i: u32, vm: &mut dyn LuaVM) {

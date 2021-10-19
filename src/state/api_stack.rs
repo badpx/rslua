@@ -489,8 +489,8 @@ impl LuaAPI for LuaState {
     fn call(&mut self, nargs: usize, nresults: isize) {
         let val = self.stack().get(-(nargs as isize + 1));
         if let LuaValue::Function(c) = val {
-            // Debug info
-            println!("call {}<{}, {}>", c.proto.source.clone().unwrap(), c.proto.line_defined, c.proto.last_line_defined);
+            // DEBUG info
+            //println!(" Call {}<{}, {}>", c.proto.source.clone().unwrap(), c.proto.line_defined, c.proto.last_line_defined);
 
             self.call_lua_closure(nargs, nresults, c);
         } else {
@@ -562,11 +562,62 @@ impl LuaState {
         loop {
             let inst = self.fetch();
             inst.execute(self);
+
+            // DEBUG info
+            /*
+            let line = format!("{}", self.stack().closure.proto.line_info[self.pc() as usize - 1]);
+            print!("{:04}\t[{}]\t{} ", self.pc(), line, inst.opname());
+            print_oprands(inst);
+            println!("\t{:?}", self.stack()._raw_data());
+            */
+
             if inst.opcode() == crate::vm::opcodes::OP_RETURN {
                 break;
             }
         }
     }
+}
+
+use crate::vm::opcodes::{OP_ARG_K, OP_ARG_N, OP_ARG_U};
+fn print_oprands(i: u32) {
+    match i.opmode() {
+        OP_MODE_ABC => {
+            let (a, b, c) = i.abc();
+            print!("{}", a);
+            if i.b_mode() != OP_ARG_N {
+                if b > 0xFF {
+                    print!(" {}", -1 - (b & 0xFF));
+                } else {
+                    print!(" {}", b);
+                }
+            }
+            if i.c_mode() != OP_ARG_N {
+                if c > 0xFF {
+                    print!(" {}", -1 - (c & 0xFF));
+                } else {
+                    print!(" {}", c);
+                }
+            }
+        }
+        OP_MODE_ABX => {
+            let (a, bx) = i.a_bx();
+            print!(" {}", a);
+            if i.b_mode() == OP_ARG_K {
+                print!(" {}", -1 - bx);
+            } else if i.b_mode() == OP_ARG_U {
+                print!(" {}", bx);
+            }
+        }
+        OP_MODE_ASBX => {
+            let (a, sbx) = i.a_sbx();
+            print!("{} {}", a, sbx);
+        }
+        OP_MODE_AX => {
+            let ax = i.ax();
+            print!("{}", -1 - ax);
+        }
+        _ => unreachable!(),
+    };
 }
 
 #[cfg(test)]

@@ -21,7 +21,7 @@ use super::instruction::Instruction;
         prototypes             registers
 */
 
-pub fn closure(i: u32, vm: &mut LuaVM) {
+pub fn closure(i: u32, vm: &mut dyn LuaVM) {
     let (a, bx) = i.a_bx();
     vm.load_proto(bx as usize);
     vm.replace(a + 1);
@@ -44,7 +44,7 @@ A+B-2-> |    b    |---->
         +---------+
          registers
 */
-pub fn return_(i: u32, vm: &mut LuaVM) {
+pub fn return_(i: u32, vm: &mut dyn LuaVM) {
     let (a, b, _) = i.abc();
     let a = a + 1;
     if b == 1 {
@@ -76,7 +76,7 @@ pub fn return_(i: u32, vm: &mut LuaVM) {
         +---------+           +---------+
           varargs              registers
 */
-pub fn vararg(i: u32, vm: &mut LuaVM) {
+pub fn vararg(i: u32, vm: &mut dyn LuaVM) {
     let (a, b, _) = i.abc();
     if b != 1 {
         vm.load_vararg(b - 1);
@@ -101,7 +101,7 @@ A+B-1-> |    3    |-------+     |         |
         +---------+             +---------+
          registers               registers
 */
-pub fn call(i: u32, vm: &mut LuaVM) {
+pub fn call(i: u32, vm: &mut dyn LuaVM) {
     let (a, b, c) = i.abc();
     let a = a + 1;
     let nargs = push_func_and_args(a, b, vm);
@@ -110,7 +110,7 @@ pub fn call(i: u32, vm: &mut LuaVM) {
 }
 
 // return R(A)(R(A+1), ..., R(A+B-1))
-pub fn tail_call(i: u32, vm: &mut LuaVM) {
+pub fn tail_call(i: u32, vm: &mut dyn LuaVM) {
     let (a, b, _) = i.abc();
     let a = a + 1;
     let nargs = push_func_and_args(a, b, vm);
@@ -118,7 +118,7 @@ pub fn tail_call(i: u32, vm: &mut LuaVM) {
     pop_results(a, 0, vm);
 }
 
-fn pop_results(a: isize, c: isize, vm: &mut LuaVM) {
+fn pop_results(a: isize, c: isize, vm: &mut dyn LuaVM) {
     if c == 1 {
         // No results
     } else if c > 1 {
@@ -132,7 +132,7 @@ fn pop_results(a: isize, c: isize, vm: &mut LuaVM) {
     }
 }
 
-fn push_func_and_args(a: isize, b: isize, vm: &mut LuaVM) -> usize {
+fn push_func_and_args(a: isize, b: isize, vm: &mut dyn LuaVM) -> usize {
     if b >= 1 { //b - 1 args
         vm.check_stack(b as usize);
         for i in a..(a+b) {
@@ -145,7 +145,7 @@ fn push_func_and_args(a: isize, b: isize, vm: &mut LuaVM) -> usize {
     }
 }
 
-fn fix_stack(a: isize, vm: &mut LuaVM) {
+fn fix_stack(a: isize, vm: &mut dyn LuaVM) {
     let x = vm.to_integer(-1) as isize;
     vm.pop(1);
 
@@ -176,7 +176,7 @@ fn fix_stack(a: isize, vm: &mut LuaVM) {
         +---------+           +---------+
          registers             registers
 */
-pub fn self_(i: u32, vm: &mut LuaVM) {
+pub fn self_(i: u32, vm: &mut dyn LuaVM) {
     let (a, b, c) = i.abc();
     let a = a + 1;
     let b = b + 1;

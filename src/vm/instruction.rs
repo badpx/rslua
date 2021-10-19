@@ -337,7 +337,7 @@ mod tests {
 
     #[test]
     fn test_call_func() {
-        let data = LUA_FOR_LOOP.to_vec();
+        let data = LUA_CALL_CHUNK.to_vec();
         let mut ls = LuaState::new();
         ls.load(data, "dummy", "b");
         ls.call(0, 0);
