@@ -1,4 +1,4 @@
-use super::consts::{LuaType, ArithOp, CompareOp};
+use super::consts::{ArithOp, CompareOp, LuaType};
 
 pub trait LuaState {
     /* basic stack manipulation */
@@ -56,6 +56,12 @@ pub trait LuaState {
     fn set_field(&mut self, idx: isize, k: &str);
     fn set_i(&mut self, idx: isize, i: i64);
     // call functions
-    fn load(&mut self, chunk: Vec<u8>, chunk_name: &str, mode: & str) -> u8;
+    fn load(&mut self, chunk: Vec<u8>, chunk_name: &str, mode: &str) -> u8;
     fn call(&mut self, nargs: usize, nresults: isize);
+    // call native functions
+    fn push_rust_fn(&mut self, f: RustFn);
+    fn is_rust_fn(&self, idx: isize) -> bool;
+    fn to_rust_fn(&mut self, idx: isize) -> Option<RustFn>;
 }
+
+pub type RustFn = fn(&dyn LuaState) -> usize;

@@ -1,8 +1,7 @@
-
-use crate::api::LuaVM;
 use super::instruction::Instruction;
+use crate::api::LuaVM;
 
-/* 
+/*
                 LOADNIL Instruction
         R(A), R(A+1), ..., R(A+B) := nil
     +---------+---------+---------+---------+
@@ -24,15 +23,13 @@ pub fn load_nil(i: u32, vm: &mut dyn LuaVM) {
     let (a, b, _) = i.abc();
     let a = a + 1;
     vm.push_nil();
-    for i in a..=a+b {
+    for i in a..=a + b {
         vm.copy(-1, i);
     }
     vm.pop(1);
 }
 
-/* 
-*/
-/* 
+/*
                 LOADBOOL Instruction
         R(A) := (bool)B; if (C) then pc++
 
@@ -61,7 +58,7 @@ pub fn load_bool(i: u32, vm: &mut dyn LuaVM) {
     }
 }
 
-/* 
+/*
                 LOADK Instruction
                 R(A) := Kst(Bx)
     +-------------------+---------+---------+

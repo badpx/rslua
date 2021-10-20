@@ -9,8 +9,8 @@ use crate::vm::instruction::Instruction;
 use crate::vm::opcodes::*;
 
 mod api;
-mod state;
 mod number;
+mod state;
 use crate::api::{consts::*, LuaAPI};
 use crate::state::LuaState;
 

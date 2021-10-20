@@ -79,7 +79,7 @@ impl LuaValue {
     }
 
     pub fn new_lua_closure(proto: Rc<Prototype>) -> LuaValue {
-        LuaValue::Function(Rc::new(Closure::new(proto)))
+        LuaValue::Function(Rc::new(Closure::new_lua_closure(proto)))
     }
 
     pub fn is_nil(&self) -> bool {

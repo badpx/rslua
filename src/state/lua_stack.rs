@@ -1,21 +1,25 @@
 use std::rc::Rc;
+use core::cell::RefCell;
 use super::lua_value::LuaValue;
 use super::closure::Closure;
+use super::lua_table::LuaTable;
 
 pub struct LuaStack {
     slots: Vec<LuaValue>,
     pub closure: Rc<Closure>,
     pub varargs: Vec<LuaValue>,
     pub pc: isize,
+    reg_table: Rc<RefCell<LuaTable>>,
 }
 
 impl LuaStack {
-    pub fn new(size: usize, closure: Rc<Closure>) -> LuaStack {
+    pub fn new(size: usize, closure: Rc<Closure>, reg_table: Rc<RefCell<LuaTable>>) -> LuaStack {
         return LuaStack {
             slots: Vec::with_capacity(size),
             closure,
             varargs: Vec::new(),
             pc: 0,
+            reg_table,
         }
     }
 
