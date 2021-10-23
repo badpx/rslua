@@ -1,6 +1,6 @@
 use crate::binary::chunk::Prototype;
 use crate::number::math;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::rc::Rc;
 use crate::api::RustFn;
 

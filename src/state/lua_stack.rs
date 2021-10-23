@@ -3,24 +3,24 @@ use std::rc::Weak;
 use core::cell::RefCell;
 use super::lua_value::LuaValue;
 use super::closure::Closure;
-use super::lua_table::LuaTable;
+use super::lua_state::LuaState;
 
 pub struct LuaStack {
     slots: Vec<LuaValue>,
     pub closure: Rc<Closure>,
     pub varargs: Vec<LuaValue>,
     pub pc: isize,
-    reg_table: Weak<RefCell<LuaTable>>,
+    pub state: Option<Weak<RefCell<LuaState>>>,
 }
 
 impl LuaStack {
-    pub fn new(size: usize, closure: Rc<Closure>, reg_table: Weak<RefCell<LuaTable>>) -> LuaStack {
+    pub fn new(size: usize, closure: Rc<Closure>) -> LuaStack {
         return LuaStack {
             slots: Vec::with_capacity(size),
             closure,
             varargs: Vec::new(),
             pc: 0,
-            reg_table,
+            state: None,
         }
     }
 

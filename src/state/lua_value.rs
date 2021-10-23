@@ -1,7 +1,7 @@
 use core::cell::RefCell;
 use std::rc::Rc;
 use std::fmt;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use crate::number::math;
 use crate::api::consts::*;
 use crate::binary::chunk::Prototype;

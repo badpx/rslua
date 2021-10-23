@@ -11,7 +11,7 @@ use crate::vm::opcodes::*;
 mod api;
 mod number;
 mod state;
-use crate::api::{consts::*, LuaAPI};
+use crate::api::consts::*;
 use crate::state::LuaState;
 
 fn main() -> io::Result<()> {

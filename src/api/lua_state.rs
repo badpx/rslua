@@ -62,6 +62,11 @@ pub trait LuaState {
     fn push_rust_fn(&mut self, f: RustFn);
     fn is_rust_fn(&self, idx: isize) -> bool;
     fn to_rust_fn(&mut self, idx: isize) -> Option<RustFn>;
+    // access global table
+    fn push_global_table(&mut self);
+    fn get_global(&mut self, name: &str) -> LuaType;
+    fn set_global(&mut self, name: &str);
+    fn register(&mut self, name: &str, f: RustFn);
 }
 
 pub type RustFn = fn(&dyn LuaState) -> usize;

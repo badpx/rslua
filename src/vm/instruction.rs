@@ -4,6 +4,7 @@ use super::inst_misc::*;
 use super::inst_ops::*;
 use super::inst_table::*;
 use super::inst_call::*;
+use super::inst_upvalue::*;
 use super::opcodes::*;
 use crate::api::LuaVM;
 
@@ -97,7 +98,7 @@ impl Instruction for u32 {
             OP_LOADBOOL => load_bool(self, vm),
             OP_LOADNIL => load_nil(self, vm),
             // OP_GETUPVAL => (),
-            // OP_GETTABUP => (),
+            OP_GETTABUP => get_tab_up(self, vm),
             OP_GETTABLE => get_table(self, vm),
             // OP_SETTABUP => (),
             // OP_SETUPVAL => (),
@@ -155,6 +156,27 @@ mod tests {
     use crate::binary::reader::tests::LUA_FOR_LOOP;
     use super::*;
     use std::rc::Rc;
+    use core::cell::RefCell;
+    
+    /* Lua source code:
+        print("Hello, world!")
+    */
+    const LUA_HELLO_CHUNK: &[u8] = &[
+        0x1b, 0x4c, 0x75, 0x61, 0x53, 0x00, 0x19, 0x93, 0x0d, 0x0a, 0x1a, 0x0a,
+        0x04, 0x08, 0x04, 0x08, 0x08, 0x78, 0x56, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x77, 0x40, 0x01, 0x0b, 0x40,
+        0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x2e, 0x6c, 0x75, 0x61, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x04, 0x00, 0x00, 0x00,
+        0x06, 0x00, 0x40, 0x00, 0x41, 0x40, 0x00, 0x00, 0x24, 0x40, 0x00, 0x01,
+        0x26, 0x00, 0x80, 0x00, 0x02, 0x00, 0x00, 0x00, 0x04, 0x06, 0x70, 0x72,
+        0x69, 0x6e, 0x74, 0x04, 0x0e, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20,
+        0x77, 0x6f, 0x72, 0x6c, 0x64, 0x21, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+        0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x05, 0x5f, 0x45, 0x4e,
+        0x56
+
+    ];
 
     /* Lua source code:
         local t = {"a", "b", "c"}
@@ -323,7 +345,7 @@ mod tests {
     fn test_forloop() {
         let proto = undump(LUA_FOR_LOOP.to_vec());
         let ls = execute(proto);
-        let result = ls.stack().get(1);
+        let result = ls.borrow().stack().get(1);
         assert_eq!(result.to_integer(), Some(2550));
     }
 
@@ -331,33 +353,65 @@ mod tests {
     fn test_table() {
         let proto = undump(LUA_TABLE_CHUNK.to_vec());
         let ls = execute(proto);
-        let result = ls.to_string(2);
+        let result = ls.borrow().to_string(2);
         assert_eq!(result, "cBaBar3");
     }
 
     #[test]
     fn test_call_func() {
         let data = LUA_CALL_CHUNK.to_vec();
-        let mut ls = LuaState::new();
-        ls.load(data, "dummy", "b");
-        ls.call(0, 0);
+        let ls = Rc::new(RefCell::new(LuaState::new()));
+        ls.borrow_mut().stack_mut().state = Some(Rc::downgrade(&ls));
+
+        ls.borrow_mut().load(data, "dummy", "b");
+        ls.borrow_mut().call(0, 0);
     }
 
-    fn execute(proto: Rc<chunk::Prototype>) -> LuaState {
+    #[test]
+    fn test_call_rust_func() {
+        let data = LUA_HELLO_CHUNK.to_vec();
+        let ls = Rc::new(RefCell::new(LuaState::new()));
+        ls.borrow_mut().stack_mut().state = Some(Rc::downgrade(&ls));
+
+        ls.borrow_mut().register("print", _print); // Register print function
+        ls.borrow_mut().load(data, "chunk", "b");
+        ls.borrow_mut().call(0, 0);
+    }
+
+    fn execute(proto: Rc<chunk::Prototype>) -> Rc<RefCell<LuaState>> {
         let regs_size = proto.max_stack_size;
-        let mut ls = state::new_lua_state((regs_size + 8) as usize, proto);
-        ls.set_top(regs_size as isize);
+        let ls = state::new_lua_state((regs_size + 8) as usize, proto);
+        ls.borrow_mut().set_top(regs_size as isize);
         loop {
-            let pc = ls.pc();
-            let inst = ls.fetch();
+            let pc = ls.borrow_mut().pc();
+            let inst = ls.borrow_mut().fetch();
             if inst.opcode() != OP_RETURN {
-                inst.execute(&mut ls);
-                print!("[{:04}] {} ", pc + 1, inst.opname());
+                inst.execute(&mut *ls.borrow_mut());
+                //print!("[{:04}] {} ", pc + 1, inst.opname());
             } else {
                 break;
             }
-            println!("{:?}", ls.stack()._raw_data());
+            //println!("{:?}", ls.borrow().stack()._raw_data());
         }
         ls 
+    }
+
+    fn _print(ls: &dyn crate::api::LuaAPI) -> usize {
+        let nargs = ls.get_top();
+        for i in 1..=nargs {
+            if ls.is_boolean(i) {
+                print!("{}", if ls.to_boolean(i) { "true" } else {"false"});
+            } else if ls.is_string(i) {
+                print!("{}", ls.to_string(i));
+            } else {
+                print!("{}", ls.type_name(ls.type_id(i)));
+            }
+            
+            if i < nargs {
+                print!("\t");
+            }
+        }
+        println!("");
+        0
     }
 }

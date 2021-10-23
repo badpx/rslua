@@ -9,6 +9,8 @@ use crate::api::{LuaAPI, LuaVM, RustFn};
 use crate::vm::instruction::Instruction;
 use std::rc::Rc;
 
+const LUAVAL_RIDX_GLOBALS: LuaValue = LuaValue::Integer(LUA_RIDX_GLOBALS as i64);
+
 impl LuaAPI for LuaState {
     /* =========================== Basic Methods =========================== */
     fn get_top(&self) -> isize {
@@ -524,6 +526,61 @@ impl LuaAPI for LuaState {
             _ => None,
         }
     }
+
+    fn push_global_table(&mut self) {
+        if let LuaValue::Table(t) = &self.registry {
+            let global = t.borrow().get(&LUAVAL_RIDX_GLOBALS);
+            self.stack_mut().push(global);
+        }
+    }
+
+    /*        get_global("k")
+                       
+        +-------+        +-------+
+        |       |     -->| _G.k  |
+        +-------+        +-------+
+        |   c   |        |   c   |
+        +-------+        +-------+
+        |   b   |        |   b   |
+        +-------+        +-------+
+        |   a   |        |   a   |
+        +-------+        +-------+
+    */
+    fn get_global(&mut self, name: &str) -> LuaType {
+        if let LuaValue::Table(t) = &self.registry {
+            let global = t.borrow().get(&LUAVAL_RIDX_GLOBALS);
+            let k = LuaValue::Str(name.to_string());
+            self._get_table(&global, &k)
+        } else {
+            LUA_TNONE
+        }
+    }
+
+    /*        set_global("k")
+                       
+        +-------+        +-------+
+        |   v   |----+   |       |
+        +-------+    |   +-------+
+        |   c   |    V   |   c   |
+        +-------+ _G.k=v +-------+
+        |   b   |        |   b   |
+        +-------+        +-------+
+        |   a   |        |   a   |
+        +-------+        +-------+
+    */
+    fn set_global(&mut self, name: &str) {
+        if let LuaValue::Table(t) = &self.registry {
+            let global = t.borrow().get(&LUAVAL_RIDX_GLOBALS);
+            let v = self.stack_mut().pop();
+            let k = LuaValue::Str(name.to_string());
+            LuaState::_set_table(&global, k, v);
+        }
+    }
+
+    fn register(&mut self, name: &str, f: RustFn) {
+        self.push_rust_fn(f);
+        self.set_global(name);
+    }
 }
 
 impl LuaState {
@@ -551,9 +608,10 @@ impl LuaState {
         let nparams = c.proto.num_params as usize;
         let is_vararg = c.proto.is_vararg == 1;
 
-        // create new lua stack
-        if let LuaValue::Table(reg_table) = &self.registry {
-            let mut new_stack = LuaStack::new(nregs + LUA_MINSTACK, c, Rc::downgrade(reg_table));
+        if let Some(state) = &self.stack().state {
+            // create new lua stack
+            let mut new_stack = LuaStack::new(nregs + LUA_MINSTACK, c);
+            new_stack.state = Some(state.clone());
 
             // pop args and func
             let mut args = self.stack_mut().pop_n(nargs);
@@ -585,7 +643,7 @@ impl LuaState {
                 self.stack_mut().push_n(results, nresults);
             }
         } else {
-            panic!("Invalid registry!");
+            panic!("Frame stack is empty!");
         }
     }
 
@@ -610,8 +668,10 @@ impl LuaState {
 
     fn call_rust_closure(&mut self, nargs: usize, nresults: isize, c: Rc<Closure>) {
         let rust_fn = c.rust_fn.unwrap();
-        if let LuaValue::Table(reg_table) = &self.registry {
-            let mut new_stack = LuaStack::new(nargs + LUA_MINSTACK, c, Rc::downgrade(reg_table));
+        if let Some(state) = &self.stack().state {
+            // create new lua stack
+            let mut new_stack = LuaStack::new(nargs + LUA_MINSTACK, c);
+            new_stack.state = Some(state.clone());
 
             if nargs > 0 {
                 let args = self.stack_mut().pop_n(nargs);
@@ -630,12 +690,12 @@ impl LuaState {
                 self.stack_mut().push_n(results, nresults);
             }
         } else {
-            panic!("Invalid registry!");
+            panic!("Frame stack is empty!");
         }
     }
 }
 
-use crate::vm::opcodes::{OP_ARG_K, OP_ARG_N, OP_ARG_U};
+use crate::vm::opcodes::*;
 fn print_oprands(i: u32) {
     match i.opmode() {
         OP_MODE_ABC => {
@@ -686,23 +746,23 @@ mod tests {
     #[test]
     fn stack() {
         let proto = crate::binary::undump(LUA_FOR_LOOP.to_vec());
-        let mut ls = new_lua_state(proto.max_stack_size as usize, proto);
-        assert_eq!(*ls.stack()._raw_data(), Vec::<LuaValue>::new());
-        ls.push_boolean(true);
-        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Boolean(true)]);
-        ls.push_integer(10);
+        let ls = new_lua_state(proto.max_stack_size as usize, proto);
+        assert_eq!(*ls.borrow().stack()._raw_data(), Vec::<LuaValue>::new());
+        ls.borrow_mut().push_boolean(true);
+        assert_eq!(*ls.borrow().stack()._raw_data(), vec![LuaValue::Boolean(true)]);
+        ls.borrow_mut().push_integer(10);
         assert_eq!(
-            *ls.stack()._raw_data(),
+            *ls.borrow().stack()._raw_data(),
             vec![LuaValue::Boolean(true), LuaValue::Integer(10)]
         );
-        ls.push_nil();
+        ls.borrow_mut().push_nil();
         assert_eq!(
-            *ls.stack()._raw_data(),
+            *ls.borrow().stack()._raw_data(),
             vec![LuaValue::Boolean(true), LuaValue::Integer(10), LuaValue::Nil]
         );
-        ls.push_string("hello".to_string());
+        ls.borrow_mut().push_string("hello".to_string());
         assert_eq!(
-            *ls.stack()._raw_data(),
+            *ls.borrow().stack()._raw_data(),
             vec![
                 LuaValue::Boolean(true),
                 LuaValue::Integer(10),
@@ -710,9 +770,9 @@ mod tests {
                 LuaValue::Str("hello".to_string())
             ]
         );
-        ls.push_value(-4);
+        ls.borrow_mut().push_value(-4);
         assert_eq!(
-            *ls.stack()._raw_data(),
+            *ls.borrow().stack()._raw_data(),
             vec![
                 LuaValue::Boolean(true),
                 LuaValue::Integer(10),
@@ -721,9 +781,9 @@ mod tests {
                 LuaValue::Boolean(true)
             ]
         );
-        ls.replace(3);
+        ls.borrow_mut().replace(3);
         assert_eq!(
-            *ls.stack()._raw_data(),
+            *ls.borrow().stack()._raw_data(),
             vec![
                 LuaValue::Boolean(true),
                 LuaValue::Integer(10),
@@ -731,9 +791,9 @@ mod tests {
                 LuaValue::Str("hello".to_string())
             ]
         );
-        ls.set_top(6);
+        ls.borrow_mut().set_top(6);
         assert_eq!(
-            *ls.stack()._raw_data(),
+            *ls.borrow().stack()._raw_data(),
             vec![
                 LuaValue::Boolean(true),
                 LuaValue::Integer(10),
@@ -743,9 +803,9 @@ mod tests {
                 LuaValue::Nil
             ]
         );
-        ls.remove(-3);
+        ls.borrow_mut().remove(-3);
         assert_eq!(
-            *ls.stack()._raw_data(),
+            *ls.borrow().stack()._raw_data(),
             vec![
                 LuaValue::Boolean(true),
                 LuaValue::Integer(10),
@@ -754,33 +814,33 @@ mod tests {
                 LuaValue::Nil
             ]
         );
-        ls.set_top(-5);
-        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Boolean(true)]);
+        ls.borrow_mut().set_top(-5);
+        assert_eq!(*ls.borrow().stack()._raw_data(), vec![LuaValue::Boolean(true)]);
     }
 
     #[test]
     fn arith() {
         let proto = crate::binary::undump(LUA_FOR_LOOP.to_vec());
-        let mut ls = new_lua_state(proto.max_stack_size as usize, proto);
-        ls.push_integer(1);
-        assert_eq!(*ls.stack()._raw_data(), vec![LuaValue::Integer(1)]);
-        ls.push_string("2.0".to_string());
+        let ls = new_lua_state(proto.max_stack_size as usize, proto);
+        ls.borrow_mut().push_integer(1);
+        assert_eq!(*ls.borrow().stack()._raw_data(), vec![LuaValue::Integer(1)]);
+        ls.borrow_mut().push_string("2.0".to_string());
         assert_eq!(
-            *ls.stack()._raw_data(),
+            *ls.borrow().stack()._raw_data(),
             vec![LuaValue::Integer(1), LuaValue::Str("2.0".to_string())]
         );
-        ls.push_string("3.0".to_string());
+        ls.borrow_mut().push_string("3.0".to_string());
         assert_eq!(
-            *ls.stack()._raw_data(),
+            *ls.borrow().stack()._raw_data(),
             vec![
                 LuaValue::Integer(1),
                 LuaValue::Str("2.0".to_string()),
                 LuaValue::Str("3.0".to_string())
             ]
         );
-        ls.push_number(4.0);
+        ls.borrow_mut().push_number(4.0);
         assert_eq!(
-            *ls.stack()._raw_data(),
+            *ls.borrow().stack()._raw_data(),
             vec![
                 LuaValue::Integer(1),
                 LuaValue::Str("2.0".to_string()),
@@ -789,27 +849,27 @@ mod tests {
             ]
         );
 
-        ls.arith(LUA_OPADD);
+        ls.borrow_mut().arith(LUA_OPADD);
         assert_eq!(
-            *ls.stack()._raw_data(),
+            *ls.borrow().stack()._raw_data(),
             vec![
                 LuaValue::Integer(1),
                 LuaValue::Str("2.0".to_string()),
                 LuaValue::Number(7.0)
             ]
         );
-        ls.arith(LUA_OPBNOT);
+        ls.borrow_mut().arith(LUA_OPBNOT);
         assert_eq!(
-            *ls.stack()._raw_data(),
+            *ls.borrow().stack()._raw_data(),
             vec![
                 LuaValue::Integer(1),
                 LuaValue::Str("2.0".to_string()),
                 LuaValue::Integer(-8)
             ]
         );
-        ls.len(2);
+        ls.borrow_mut().len(2);
         assert_eq!(
-            *ls.stack()._raw_data(),
+            *ls.borrow().stack()._raw_data(),
             vec![
                 LuaValue::Integer(1),
                 LuaValue::Str("2.0".to_string()),
@@ -817,9 +877,9 @@ mod tests {
                 LuaValue::Integer(3)
             ]
         );
-        ls.concat(3);
+        ls.borrow_mut().concat(3);
         assert_eq!(
-            *ls.stack()._raw_data(),
+            *ls.borrow().stack()._raw_data(),
             vec![LuaValue::Integer(1), LuaValue::Str("2.0-83".to_string())]
         );
     }

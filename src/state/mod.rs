@@ -10,17 +10,14 @@ mod lua_value;
 pub use self::lua_state::LuaState;
 use crate::binary::chunk::Prototype;
 use std::rc::Rc;
+use core::cell::RefCell;
 
-pub fn new_lua_state(stack_size: usize, proto: Rc<Prototype>) -> LuaState {
-    let mut ls = LuaState::new();
-    if let self::lua_value::LuaValue::Table(ref reg_table) = ls.registry {
-        ls.push_frame(self::lua_stack::LuaStack::new(
-                stack_size,
-                Rc::new(self::closure::Closure::new_lua_closure(proto)),
-                Rc::downgrade(reg_table)
-        ));
-        ls
-    } else {
-        panic!("Invalid registry!");
-    }
+pub fn new_lua_state(stack_size: usize, proto: Rc<Prototype>) -> Rc<RefCell<LuaState>> {
+    let ls = Rc::new(RefCell::new(LuaState::new()));
+    ls.borrow_mut().push_frame(self::lua_stack::LuaStack::new(
+            stack_size,
+            Rc::new(self::closure::Closure::new_lua_closure(proto))
+    ));
+    ls.borrow_mut().stack_mut().state = Some(Rc::downgrade(&ls));
+    ls
 }

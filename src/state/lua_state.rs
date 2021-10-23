@@ -5,7 +5,7 @@ use super::lua_value::LuaValue;
 use crate::api::consts::*;
 use crate::api::LuaAPI;
 use crate::api::LuaVM;
-use crate::binary::chunk::{Constant, Prototype};
+use crate::binary::chunk::Constant;
 use core::cell::RefCell;
 use std::rc::Rc;
 
@@ -16,16 +16,16 @@ pub struct LuaState {
 
 impl LuaState {
     pub fn new() -> LuaState {
-        let reg_table = Rc::new(RefCell::new(LuaTable::new(0, 0)));
-        reg_table.borrow_mut().put(
+        let tbl = Rc::new(RefCell::new(LuaTable::new(0, 0)));
+        tbl.borrow_mut().put(
             LuaValue::Integer(LUA_RIDX_GLOBALS as i64),
             LuaValue::Table(Rc::new(RefCell::new(LuaTable::new(0, 0)))),
         ); // Global environment
         let dummy_closure = Rc::new(Closure::new_dummy_closure());
-        let dummy_frame = LuaStack::new(LUA_MINSTACK, dummy_closure, Rc::downgrade(&reg_table));
+        let dummy_frame = LuaStack::new(LUA_MINSTACK, dummy_closure);
         LuaState {
             frames: vec![dummy_frame],
-            registry: LuaValue::Table(reg_table),
+            registry: LuaValue::Table(tbl),
         }
     }
 

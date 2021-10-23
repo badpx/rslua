@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use super::lua_value::LuaValue;
 use crate::number::math;
 
