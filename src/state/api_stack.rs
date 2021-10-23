@@ -553,7 +553,7 @@ impl LuaState {
 
         // create new lua stack
         if let LuaValue::Table(reg_table) = &self.registry {
-            let mut new_stack = LuaStack::new(nregs + LUA_MINSTACK, c, reg_table.clone());
+            let mut new_stack = LuaStack::new(nregs + LUA_MINSTACK, c, Rc::downgrade(reg_table));
 
             // pop args and func
             let mut args = self.stack_mut().pop_n(nargs);
@@ -611,7 +611,7 @@ impl LuaState {
     fn call_rust_closure(&mut self, nargs: usize, nresults: isize, c: Rc<Closure>) {
         let rust_fn = c.rust_fn.unwrap();
         if let LuaValue::Table(reg_table) = &self.registry {
-            let mut new_stack = LuaStack::new(nargs + LUA_MINSTACK, c, reg_table.clone());
+            let mut new_stack = LuaStack::new(nargs + LUA_MINSTACK, c, Rc::downgrade(reg_table));
 
             if nargs > 0 {
                 let args = self.stack_mut().pop_n(nargs);

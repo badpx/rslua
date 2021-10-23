@@ -22,7 +22,7 @@ impl LuaState {
             LuaValue::Table(Rc::new(RefCell::new(LuaTable::new(0, 0)))),
         ); // Global environment
         let dummy_closure = Rc::new(Closure::new_dummy_closure());
-        let dummy_frame = LuaStack::new(LUA_MINSTACK, dummy_closure, reg_table.clone());
+        let dummy_frame = LuaStack::new(LUA_MINSTACK, dummy_closure, Rc::downgrade(&reg_table));
         LuaState {
             frames: vec![dummy_frame],
             registry: LuaValue::Table(reg_table),

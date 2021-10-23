@@ -17,7 +17,7 @@ pub fn new_lua_state(stack_size: usize, proto: Rc<Prototype>) -> LuaState {
         ls.push_frame(self::lua_stack::LuaStack::new(
                 stack_size,
                 Rc::new(self::closure::Closure::new_lua_closure(proto)),
-                reg_table.clone()
+                Rc::downgrade(reg_table)
         ));
         ls
     } else {

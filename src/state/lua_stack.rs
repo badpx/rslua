@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::rc::Weak;
 use core::cell::RefCell;
 use super::lua_value::LuaValue;
 use super::closure::Closure;
@@ -9,11 +10,11 @@ pub struct LuaStack {
     pub closure: Rc<Closure>,
     pub varargs: Vec<LuaValue>,
     pub pc: isize,
-    reg_table: Rc<RefCell<LuaTable>>,
+    reg_table: Weak<RefCell<LuaTable>>,
 }
 
 impl LuaStack {
-    pub fn new(size: usize, closure: Rc<Closure>, reg_table: Rc<RefCell<LuaTable>>) -> LuaStack {
+    pub fn new(size: usize, closure: Rc<Closure>, reg_table: Weak<RefCell<LuaTable>>) -> LuaStack {
         return LuaStack {
             slots: Vec::with_capacity(size),
             closure,
