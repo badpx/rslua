@@ -1,4 +1,4 @@
-use super::closure::Closure;
+use super::closure::{Closure, UpValue};
 use super::lua_stack::LuaStack;
 use super::lua_table::LuaTable;
 use super::lua_value::LuaValue;
@@ -6,8 +6,9 @@ use crate::api::consts::*;
 use crate::api::LuaAPI;
 use crate::api::LuaVM;
 use crate::binary::chunk::Constant;
-use core::cell::RefCell;
+use std::cell::RefCell;
 use std::rc::Rc;
+use std::collections::HashMap;
 
 pub struct LuaState {
     frames: Vec<LuaStack>,
@@ -21,7 +22,7 @@ impl LuaState {
             LuaValue::Integer(LUA_RIDX_GLOBALS as i64),
             LuaValue::Table(Rc::new(RefCell::new(LuaTable::new(0, 0)))),
         ); // Global environment
-        let dummy_closure = Rc::new(Closure::new_dummy_closure());
+        let dummy_closure = Rc::new(RefCell::new(Closure::new_dummy_closure()));
         let dummy_frame = LuaStack::new(LUA_MINSTACK, dummy_closure);
         LuaState {
             frames: vec![dummy_frame],
@@ -57,14 +58,13 @@ impl LuaVM for LuaState {
 
     // Fetch next instruction
     fn fetch(&mut self) -> u32 {
-        let inst = self.stack().closure.proto.code[self.stack().pc as usize];
+        let inst = self.stack().closure.borrow().proto.code[self.stack().pc as usize];
         self.stack_mut().pc += 1;
         inst
     }
 
     fn get_const(&mut self, idx: isize) {
-        let c = &self.stack().closure.proto.constants[idx as usize];
-        let val = match c {
+        let val = match &self.stack_mut().closure.borrow().proto.constants[idx as usize] {
             Constant::Nil => LuaValue::Nil,
             Constant::Boolean(b) => LuaValue::Boolean(*b),
             Constant::Integer(i) => LuaValue::Integer(*i),
@@ -85,7 +85,7 @@ impl LuaVM for LuaState {
     }
 
     fn register_count(&self) -> usize {
-        self.stack().closure.proto.max_stack_size as usize
+        self.stack().closure.borrow().proto.max_stack_size as usize
     }
 
     fn load_vararg(&mut self, mut n: isize) {
@@ -98,8 +98,28 @@ impl LuaVM for LuaState {
     }
 
     fn load_proto(&mut self, idx: usize) {
-        let proto = self.stack().closure.proto.protos[idx].clone();
-        let closure = LuaValue::new_lua_closure(proto);
+        let proto = self.stack().closure.borrow().proto.protos[idx].clone();
+        let closure = LuaValue::new_lua_closure(proto.clone());
+
+        if let LuaValue::Function(ref c) = closure {
+            for (i, uv) in proto.upvalues.iter().enumerate() {
+                let uv_idx = uv.idx as usize;
+                if uv.instack == 1 {
+                    match &self.stack().openuvs.get(&uv_idx) {
+                        Some(openuv) => c.borrow_mut().upvals[i] = Some((*openuv).clone()),
+                        None => {
+                            let t = UpValue { val: Rc::new(RefCell::new(self.stack().get(uv_idx as isize))) };
+                            c.borrow_mut().upvals[i] = Some(t.clone());
+                            self.stack_mut().openuvs.insert(uv_idx, t);
+                        },
+                    }
+                } else {
+                    c.borrow_mut().upvals[i] = Some(self.stack().closure.borrow().upvals[uv_idx].as_ref().unwrap().clone());
+                }
+            }
+        }
+
+        // TODO: Need forward?
         self.stack_mut().push(closure);
     }
 }

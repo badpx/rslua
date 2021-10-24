@@ -1,5 +1,6 @@
 use super::api_arith;
 use super::api_compare::compare;
+use super::closure::UpValue;
 use super::closure::Closure;
 use super::lua_stack::LuaStack;
 use super::lua_state::LuaState;
@@ -8,8 +9,9 @@ use crate::api::consts::*;
 use crate::api::{LuaAPI, LuaVM, RustFn};
 use crate::vm::instruction::Instruction;
 use std::rc::Rc;
+use std::cell::RefCell;
 
-const LUAVAL_RIDX_GLOBALS: LuaValue = LuaValue::Integer(LUA_RIDX_GLOBALS as i64);
+const LUAVAL_RIDX_GLOBALS: LuaValue = LuaValue::Integer(LUA_RIDX_GLOBALS);
 
 impl LuaAPI for LuaState {
     /* =========================== Basic Methods =========================== */
@@ -487,7 +489,18 @@ impl LuaAPI for LuaState {
     // Load chunk to top of stack
     fn load(&mut self, chunk: Vec<u8>, /*chunk_name*/ _: &str, /*mode*/ _: &str) -> u8 {
         let proto = crate::binary::undump(chunk);
+        let upvalues = proto.upvalues.len();
         let c = LuaValue::new_lua_closure(proto);
+        if upvalues > 0 {
+            if let LuaValue::Table(tbl) = &self.registry {
+                let env = tbl.borrow().get(&LUAVAL_RIDX_GLOBALS);
+                if let LuaValue::Function(ref closure) = c {
+                    closure.borrow_mut().upvals[0] = Some(UpValue{ val: Rc::new(RefCell::new(env)) });
+                }
+            } else {
+                panic!("No registry table!");
+            }
+        }
         self.stack_mut().push(c);
         0 // TODO:
     }
@@ -498,7 +511,7 @@ impl LuaAPI for LuaState {
             // DEBUG info
             //println!(" Call {}<{}, {}>", c.proto.source.clone().unwrap(), c.proto.line_defined, c.proto.last_line_defined);
 
-            if c.rust_fn.is_none() {
+            if c.borrow().rust_fn.is_none() {
                 self.call_lua_closure(nargs, nresults, c);
             } else {
                 self.call_rust_closure(nargs, nresults, c);
@@ -510,19 +523,19 @@ impl LuaAPI for LuaState {
 
     fn push_rust_fn(&mut self, f: RustFn) {
         self.stack_mut()
-            .push(LuaValue::Function(Rc::new(Closure::new_rust_closure(f))));
+            .push(LuaValue::Function(Rc::new(RefCell::new(Closure::new_rust_closure(f, 0)))));
     }
 
     fn is_rust_fn(&self, idx: isize) -> bool {
         match self.stack().get(idx) {
-            LuaValue::Function(c) => c.rust_fn.is_some(),
+            LuaValue::Function(c) => c.borrow().rust_fn.is_some(),
             _ => false,
         }
     }
 
     fn to_rust_fn(&mut self, idx: isize) -> Option<RustFn> {
         match self.stack().get(idx) {
-            LuaValue::Function(c) => c.rust_fn,
+            LuaValue::Function(c) => c.borrow().rust_fn,
             _ => None,
         }
     }
@@ -603,10 +616,10 @@ impl LuaState {
         }
     }
 
-    fn call_lua_closure(&mut self, nargs: usize, nresults: isize, c: Rc<Closure>) {
-        let nregs = c.proto.max_stack_size as usize;
-        let nparams = c.proto.num_params as usize;
-        let is_vararg = c.proto.is_vararg == 1;
+    fn call_lua_closure(&mut self, nargs: usize, nresults: isize, c: Rc<RefCell<Closure>>) {
+        let nregs = c.borrow().proto.max_stack_size as usize;
+        let nparams = c.borrow().proto.num_params as usize;
+        let is_vararg = c.borrow().proto.is_vararg == 1;
 
         if let Some(state) = &self.stack().state {
             // create new lua stack
@@ -666,8 +679,8 @@ impl LuaState {
         }
     }
 
-    fn call_rust_closure(&mut self, nargs: usize, nresults: isize, c: Rc<Closure>) {
-        let rust_fn = c.rust_fn.unwrap();
+    fn call_rust_closure(&mut self, nargs: usize, nresults: isize, c: Rc<RefCell<Closure>>) {
+        let rust_fn = c.borrow().rust_fn.unwrap();
         if let Some(state) = &self.stack().state {
             // create new lua stack
             let mut new_stack = LuaStack::new(nargs + LUA_MINSTACK, c);

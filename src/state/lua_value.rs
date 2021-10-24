@@ -1,4 +1,4 @@
-use core::cell::RefCell;
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::fmt;
 use std::hash::Hash;
@@ -16,7 +16,7 @@ pub enum LuaValue {
     Integer(i64),
     Str(String),
     Table(Rc<RefCell<LuaTable>>),   // mutability inside of something immutable.
-    Function(Rc<Closure>),
+    Function(Rc<RefCell<Closure>>),
 }
 
 impl fmt::Debug for LuaValue {
@@ -68,7 +68,7 @@ impl Hash for LuaValue {
             LuaValue::Number(n) => n.to_bits().hash(state),
             LuaValue::Str(s) => s.hash(state),
             LuaValue::Table(t) => t.borrow().hash(state),
-            LuaValue::Function(f) => f.hash(state),
+            LuaValue::Function(f) => f.borrow().hash(state),
         }
     }
 }
@@ -79,7 +79,7 @@ impl LuaValue {
     }
 
     pub fn new_lua_closure(proto: Rc<Prototype>) -> LuaValue {
-        LuaValue::Function(Rc::new(Closure::new_lua_closure(proto)))
+        LuaValue::Function(Rc::new(RefCell::new(Closure::new_lua_closure(proto))))
     }
 
     pub fn is_nil(&self) -> bool {

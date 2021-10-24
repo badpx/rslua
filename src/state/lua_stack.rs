@@ -1,24 +1,27 @@
 use std::rc::Rc;
 use std::rc::Weak;
-use core::cell::RefCell;
+use std::collections::HashMap;
+use std::cell::RefCell;
 use super::lua_value::LuaValue;
-use super::closure::Closure;
+use super::closure::{Closure, UpValue};
 use super::lua_state::LuaState;
 
 pub struct LuaStack {
     slots: Vec<LuaValue>,
-    pub closure: Rc<Closure>,
+    pub closure: Rc<RefCell<Closure>>,
     pub varargs: Vec<LuaValue>,
+    pub openuvs: HashMap<usize, UpValue>,
     pub pc: isize,
     pub state: Option<Weak<RefCell<LuaState>>>,
 }
 
 impl LuaStack {
-    pub fn new(size: usize, closure: Rc<Closure>) -> LuaStack {
+    pub fn new(size: usize, closure: Rc<RefCell<Closure>>) -> LuaStack {
         return LuaStack {
             slots: Vec::with_capacity(size),
             closure,
             varargs: Vec::new(),
+            openuvs: HashMap::new(),
             pc: 0,
             state: None,
         }

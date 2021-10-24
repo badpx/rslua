@@ -45,4 +45,4 @@ pub const LUA_OPLE: u8 = 2; // <=
 pub const LUA_MINSTACK: usize = 20;
 pub const LUA_MAXSTACK: usize = 1000000;
 pub const LUA_REGISTRY_INDEX: isize = -(LUA_MAXSTACK as isize) - 1000;
-pub const LUA_RIDX_GLOBALS: isize = 2;
+pub const LUA_RIDX_GLOBALS: i64 = 2;

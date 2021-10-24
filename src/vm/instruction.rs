@@ -156,7 +156,7 @@ mod tests {
     use crate::binary::reader::tests::LUA_FOR_LOOP;
     use super::*;
     use std::rc::Rc;
-    use core::cell::RefCell;
+    use std::cell::RefCell;
     
     /* Lua source code:
         print("Hello, world!")
