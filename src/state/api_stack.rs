@@ -594,6 +594,27 @@ impl LuaAPI for LuaState {
         self.push_rust_fn(f);
         self.set_global(name);
     }
+
+    /*     push_rust_closure(f, 2)
+                       
+        +-------+          +-------+
+        |   u2  |---+      |       |
+        +-------+   |      +-------+
+        |   u1  |-{close}->|   f   |
+        +-------+          +-------+
+        |   b   |          |   b   |
+        +-------+          +-------+
+        |   a   |          |   a   |
+        +-------+          +-------+
+    */
+    fn push_rust_closure(&mut self, f: RustFn, n: usize) {
+        let mut closure = Closure::new_rust_closure(f, n);
+        for _ in 0..n {
+            let val = self.stack_mut().pop();
+            closure.upvals[n - 1] = Some(UpValue{val: Rc::new(RefCell::new(val))});
+        }
+        self.stack_mut().push(LuaValue::Function(Rc::new(RefCell::new(closure))));
+    }
 }
 
 impl LuaState {
@@ -705,6 +726,10 @@ impl LuaState {
         } else {
             panic!("Frame stack is empty!");
         }
+    }
+
+    fn lua_upvalue_index(i: isize) -> isize {
+        LUA_REGISTRY_INDEX - i
     }
 }
 

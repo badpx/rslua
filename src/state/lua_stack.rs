@@ -1,3 +1,4 @@
+use crate::LUA_REGISTRY_INDEX;
 use std::rc::Rc;
 use std::rc::Weak;
 use std::collections::HashMap;
@@ -75,6 +76,10 @@ impl LuaStack {
     }
 
     pub fn is_valid(&self, idx: isize) -> bool {
+        if idx < LUA_REGISTRY_INDEX { /* upvalues */
+            let uv_idx = LUA_REGISTRY_INDEX - idx - 1;
+            return uv_idx < self.closure.borrow().upvals.len() as isize;
+        }
         self._is_valid(idx).0
     }
 
@@ -84,6 +89,14 @@ impl LuaStack {
     }
 
     pub fn get(&self, idx: isize) -> LuaValue {
+        if idx < LUA_REGISTRY_INDEX {   // upvalues
+            let uv_idx = LUA_REGISTRY_INDEX - idx - 1;
+            if uv_idx >= self.closure.borrow().upvals.len() as isize ||
+            self.closure.borrow().upvals[uv_idx as usize].is_none() {
+                return LuaValue::Nil;
+            }
+            return self.closure.borrow().upvals[uv_idx as usize].as_ref().unwrap().val.borrow().clone();
+        }
         let (valid, abs_idx) = self._is_valid(idx);
         if valid {
             self.slots[abs_idx as usize - 1].clone()
@@ -93,6 +106,15 @@ impl LuaStack {
     }
 
     pub fn set(&mut self, idx: isize, val: LuaValue) {
+        if idx < LUA_REGISTRY_INDEX {
+            let uv_idx = LUA_REGISTRY_INDEX - idx - 1;
+            if uv_idx < self.closure.borrow().upvals.len() as isize &&
+            self.closure.borrow().upvals[uv_idx as usize].is_some() {
+                self.closure.borrow_mut().upvals[uv_idx as usize].as_ref().unwrap().val.replace(val);
+            }
+            return;
+        }
+
         let (valid, abs_idx) = self._is_valid(idx);
         if valid {
             self.slots[abs_idx as usize - 1] = val;

@@ -31,11 +31,11 @@ impl LuaTable {
     pub fn get(&self, key: &LuaValue) -> LuaValue {
         if let Some(idx) = to_index(key) {
             if idx <= self.arr.len() {
-                return self.arr[idx - 1].clone();
+                return self.arr[idx - 1].clone();   // TODO: Change clone to reference
             }
         }
         if let Some(val) = self.map.get(key) {
-            val.clone()
+            val.clone() // TODO: Change clone to reference
         } else {
             LuaValue::Nil
         }
